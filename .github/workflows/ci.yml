@@ -1,0 +1,58 @@
+name: CI - Build and Verify
+
+on:
+  push:
+    paths:
+      - 'src/**'
+      - 'include/**'
+      - '.github/workflows/**'
+      - 'CMakeLists.txt'
+      - 'read.txt'
+      - 'expected.txt'
+  workflow_dispatch:
+
+jobs:
+  ubuntu-ci:
+    name: Linux (Ubuntu / GCC)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Fast Install Dependencies (no man-db)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get remove -y man-db || true
+          echo "man-db hold" | sudo dpkg --set-selections
+          sudo apt-get install -y --no-install-recommends eatmydata
+          sudo eatmydata apt-get install -y --no-install-recommends ninja-build g++ cmake flex bison@latest
+
+      - name: Configure and Build
+        run: |
+          mkdir -p build
+          cd build
+          cmake -G Ninja ..
+          ninja
+
+      - name: Run Program
+        id: runprog
+        run: |
+          cd build
+          printf "q;\n" | ./compiler > ../output.txt
+          echo "Program executed successfully"
+
+      - name: Compare Output with expected.txt
+        run: |
+          # Normalize both expected and output by stripping trailing blanks and blank lines
+          sed -E 's/[[:space:]]+$//' expected.txt | sed -E '/^[[:space:]]*$/d' > expected_trimmed.txt
+          sed -E 's/[[:space:]]+$//' output.txt   | sed -E '/^[[:space:]]*$/d' > output_trimmed.txt
+          
+          echo "=== Program Output ==="
+          cat output_trimmed.txt
+          echo "======================="
+          echo "=== Expected Output ==="
+          cat expected_trimmed.txt
+          echo "======================="
+          diff -u expected_trimmed.txt output_trimmed.txt || (echo "❌ Output mismatch" && exit 1)
+          echo "✅ Output matches expected.txt"

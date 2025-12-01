@@ -1,0 +1,51 @@
+# Build
+
+**build**/
+bin/
+out/
+dist/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+compile_commands.json
+
+*.yy.cpp
+*.yy.hpp
+*.tab.cpp
+*.tab.hpp
+lex.yy.c
+y.tab.c
+y.tab.h
+
+*.o
+*.obj
+*.a
+*.so
+*.dll
+*.dylib
+*.exe
+*.out
+
+# Editor / IDE files
+
+.vscode/
+.idea/
+*.swp
+*.swo
+*.user
+*.workspace
+*.code-workspace
+
+# System
+
+.DS_Store
+Thumbs.db
+ehthumbs.db
+desktop.ini
+
+# Misc
+
+*.log
+*.tmp
+*.bak

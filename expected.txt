@@ -1,0 +1,146 @@
+Parsing successful!
+
+===== AST =====
+└── Statement
+    ├── Statement
+    │   ├── Statement
+    │   │   ├── Statement
+    │   │   │   ├── Statement
+    │   │   │   │   ├── Statement
+    │   │   │   │   │   ├── Statement
+    │   │   │   │   │   │   ├── Statement
+    │   │   │   │   │   │   │   ├── Statement
+    │   │   │   │   │   │   │   │   ├── Statement
+    │   │   │   │   │   │   │   │   │   ├── Statement
+    │   │   │   │   │   │   │   │   │   │   ├── Statement
+    │   │   │   │   │   │   │   │   │   │   │   ├── Statement
+    │   │   │   │   │   │   │   │   │   │   │   │   ├── Statement
+    │   │   │   │   │   │   │   │   │   │   │   │   │   ├── Statement
+    │   │   │   │   │   │   │   │   │   │   │   │   │   │   ├── Statement
+    │   │   │   │   │   │   │   │   │   │   │   │   │   │   │   ├── Statement
+    │   │   │   │   │   │   │   │   │   │   │   │   │   │   │   │   └── Declaration (int)
+    │   │   │   │   │   │   │   │   │   │   │   │   │   │   │   │       ├── Identifier: Va
+    │   │   │   │   │   │   │   │   │   │   │   │   │   │   │   │       └── init
+    │   │   │   │   │   │   │   │   │   │   │   │   │   │   │   │           └── Number: 3
+    │   │   │   │   │   │   │   │   │   │   │   │   │   │   │   └── Declaration (int)
+    │   │   │   │   │   │   │   │   │   │   │   │   │   │   │       ├── Identifier: Vb
+    │   │   │   │   │   │   │   │   │   │   │   │   │   │   │       └── init
+    │   │   │   │   │   │   │   │   │   │   │   │   │   │   │           └── Number: 4
+    │   │   │   │   │   │   │   │   │   │   │   │   │   │   └── Declaration (int)
+    │   │   │   │   │   │   │   │   │   │   │   │   │   │       ├── Identifier: Vc
+    │   │   │   │   │   │   │   │   │   │   │   │   │   │       └── init
+    │   │   │   │   │   │   │   │   │   │   │   │   │   │           └── BinOp (+)
+    │   │   │   │   │   │   │   │   │   │   │   │   │   │               ├── Identifier: Va
+    │   │   │   │   │   │   │   │   │   │   │   │   │   │               └── Identifier: Vb
+    │   │   │   │   │   │   │   │   │   │   │   │   │   └── Declaration (int)
+    │   │   │   │   │   │   │   │   │   │   │   │   │       ├── Identifier: Vx
+    │   │   │   │   │   │   │   │   │   │   │   │   │       ├── Identifier: Vy
+    │   │   │   │   │   │   │   │   │   │   │   │   │       └── Identifier: Vz
+    │   │   │   │   │   │   │   │   │   │   │   │   └── Assignment
+    │   │   │   │   │   │   │   │   │   │   │   │       ├── Identifier: Vx
+    │   │   │   │   │   │   │   │   │   │   │   │       └── Number: 10
+    │   │   │   │   │   │   │   │   │   │   │   └── Assignment
+    │   │   │   │   │   │   │   │   │   │   │       ├── Identifier: Vy
+    │   │   │   │   │   │   │   │   │   │   │       └── BinOp (*)
+    │   │   │   │   │   │   │   │   │   │   │           ├── Identifier: Vx
+    │   │   │   │   │   │   │   │   │   │   │           └── Number: 2
+    │   │   │   │   │   │   │   │   │   │   └── Assignment
+    │   │   │   │   │   │   │   │   │   │       ├── Identifier: Vz
+    │   │   │   │   │   │   │   │   │   │       └── BinOp (+)
+    │   │   │   │   │   │   │   │   │   │           ├── BinOp (+)
+    │   │   │   │   │   │   │   │   │   │           │   ├── Identifier: Vx
+    │   │   │   │   │   │   │   │   │   │           │   └── Identifier: Vy
+    │   │   │   │   │   │   │   │   │   │           └── Identifier: Vc
+    │   │   │   │   │   │   │   │   │   └── Declaration (string)
+    │   │   │   │   │   │   │   │   │       ├── Identifier: Vs1
+    │   │   │   │   │   │   │   │   │       └── Identifier: Vs2
+    │   │   │   │   │   │   │   │   └── Assignment
+    │   │   │   │   │   │   │   │       ├── Identifier: Vs3
+    │   │   │   │   │   │   │   │       └── StringLiteral: "HelloWorld"
+    │   │   │   │   │   │   │   └── Print(int)
+    │   │   │   │   │   │   │       └── Identifier: Va
+    │   │   │   │   │   │   └── Print(int)
+    │   │   │   │   │   │       └── Identifier: Vc
+    │   │   │   │   │   └── Print(int)
+    │   │   │   │   │       └── Identifier: Vz
+    │   │   │   │   └── Print(string)
+    │   │   │   │       └── "Direct string literal"
+    │   │   │   └── Print(string)
+    │   │   │       └── Identifier: Vs3
+    │   │   └── If
+    │   │       ├── Condition (>)
+    │   │       │   ├── Identifier: Vc
+    │   │       │   └── Number: 5
+    │   │       ├── Then
+    │   │       │   └── Statement
+    │   │       │       └── Print(int)
+    │   │       │           └── Identifier: Vc
+    │   │       └── Else
+    │   └── If
+    │       ├── Condition (<)
+    │       │   ├── Identifier: Va
+    │       │   └── Identifier: Vb
+    │       ├── Then
+    │       │   └── Statement
+    │       │       └── Print(int)
+    │       │           └── Identifier: Va
+    │       └── Else
+    │           └── Statement
+    │               └── Print(int)
+    │                   └── Identifier: Vb
+    └── While
+        ├── Condition (<)
+        │   ├── Identifier: Vx
+        │   └── Number: 15
+        └── Statement
+            ├── Statement
+            │   └── Print(int)
+            │       └── Identifier: Vx
+            └── Assignment
+                ├── Identifier: Vx
+                └── BinOp (+)
+                    ├── Identifier: Vx
+                    └── Number: 1
+
+===== IR =====
+Va = 3
+Vb = 4
+T1 = Va + Vb
+Vc = T1
+Vx = 10
+T2 = Vx * 2
+Vy = T2
+T3 = Vx + Vy
+T4 = T3 + Vc
+Vz = T4
+Vs3 = S1
+print(int, Va)
+print(int, Vc)
+print(int, Vz)
+print(string, S2)
+print(string, Vs3)
+if Vc > 5 goto L1
+jump L2
+L1:
+print(int, Vc)
+jump L3
+L2:
+L3:
+if Va < Vb goto L4
+jump L5
+L4:
+print(int, Va)
+jump L6
+L5:
+print(int, Vb)
+L6:
+L7:
+if Vx < 15 goto L10
+jump L9
+L10:
+print(int, Vx)
+T5 = Vx + 1
+Vx = T5
+jump L7
+L9:
+------------------------------

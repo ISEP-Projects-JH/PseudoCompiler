@@ -1,0 +1,36 @@
+int a = 3;
+int b = 4;
+
+int c = a + b;
+
+int x, y, z;
+
+x = 10;
+y = x * 2;
+z = x + y + c;
+
+string s1, s2;
+string s3 = "HelloWorld";
+
+print(a);
+print(c);
+print(z);
+
+prints("Direct string literal");
+prints(s3);
+
+if (c > 5) {
+    print(c);
+}
+
+if (a < b) {
+    print(a);
+}
+else {
+    print(b);
+}
+
+while (x < 15) {
+    print(x);
+    x = x + 1;
+}
