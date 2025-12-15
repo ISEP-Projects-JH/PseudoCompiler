@@ -19,6 +19,8 @@ y.tab.c
 y.tab.h
 
 *.o
+*.asm
+*.s
 *.obj
 *.a
 *.so

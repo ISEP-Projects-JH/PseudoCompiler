@@ -2,6 +2,7 @@
 #include <iostream>
 #include <sstream>
 #include <vector>
+#include <filesystem>
 
 #include "ast.hpp"
 #include "ir.hpp"
@@ -145,15 +146,65 @@ static void print_ast(const std::shared_ptr<Node> &node,
     std::cout << "Unknown Node\n";
 }
 
+namespace fs = std::filesystem;
 
+struct Config {
+    std::string src_path   = "read.txt";
+    std::string target_path = "out.asm";
+    bool print_ast = false;
+    bool print_ir  = false;
+};
 
-
-int main()
+Config parse_args(int argc, char** argv)
 {
+    Config cfg;
+
+    for (int i = 1; i < argc; ++i) {
+        std::string arg = argv[i];
+
+        if (arg == "-src") {
+            if (i + 1 >= argc)
+                throw std::runtime_error("Missing value for -src");
+            cfg.src_path = argv[++i];
+        }
+        else if (arg == "-target") {
+            if (i + 1 >= argc)
+                throw std::runtime_error("Missing value for -target");
+            cfg.target_path = argv[++i];
+        }
+        else if (arg == "--ast") {
+            cfg.print_ast = true;
+        }
+        else if (arg == "--ir") {
+            cfg.print_ir = true;
+        }
+        else {
+            throw std::runtime_error("Unknown argument: " + arg);
+        }
+    }
+
+    cfg.src_path    = fs::absolute(fs::path(cfg.src_path)).lexically_normal().string();
+    cfg.target_path = fs::absolute(fs::path(cfg.target_path)).lexically_normal().string();
+
+    return cfg;
+}
+
+int main(int argc, char** argv)
+{
+    Config cfg;
+    try {
+        cfg = parse_args(argc, argv);
+    } catch (const std::exception& e) {
+        std::cerr << "Argument error: " << e.what() << "\n";
+        return 1;
+    }
     while (true)
     {
-        std::ifstream fin("../read.txt");
-        if (!fin) { std::cerr << "Cannot open read.txt\n"; return 1; }
+        std::ifstream fin(cfg.src_path);
+        if (!fin) {
+            std::cerr << "Cannot open " << cfg.src_path << "\n";
+            return 1;
+        }
 
         std::stringstream buffer;
         buffer << fin.rdbuf();
@@ -167,49 +218,50 @@ int main()
 
             if (parse_result == 0)
             {
-                std::cout << "Parsing successful!\n\n===== AST =====\n";
-                print_ast(g_ast_root);
+                if (cfg.print_ast) {
+                    std::cout << "===== AST =====\n";
+                    print_ast(g_ast_root);
+                }
 
-                std::cout << "\n===== IR =====\n";
                 IntermediateCodeGen irgen(g_ast_root);
                 auto gen = irgen.get();
 
-                for (auto &instr : gen.code.code)
-                {
-                    switch (instr->kind())
-                    {
-                        case IRKind::Assignment: {
-                            auto *a = dynamic_cast<AssignmentCode*>(instr.get());
-                            std::cout << a->var << " = " << a->left;
-                            if (!a->op.empty())
-                                std::cout << " " << a->op << " " << a->right;
-                            std::cout << "\n";
-                            break;
-                        }
-                        case IRKind::Jump: {
-                            auto *j = dynamic_cast<JumpCode*>(instr.get());
-                            std::cout << "jump " << j->dist << "\n";
-                            break;
-                        }
-                        case IRKind::Label: {
-                            auto *l = dynamic_cast<LabelCode*>(instr.get());
-                            std::cout << l->label << ":\n";
-                            break;
-                        }
-                        case IRKind::Compare: {
-                            auto *c = dynamic_cast<CompareCodeIR*>(instr.get());
-                            std::cout << "if " << c->left << " " << c->operation
-                                      << " " << c->right << " goto " << c->jump << "\n";
-                            break;
-                        }
-                        case IRKind::Print: {
-                            auto *p = dynamic_cast<PrintCodeIR*>(instr.get());
-                            std::cout << "print(" << p->type << ", " << p->value << ")\n";
-                            break;
+                if (cfg.print_ir) {
+                    std::cout << "\n===== IR =====\n";
+                    for (auto &instr : gen.code.code) {
+                        switch (instr->kind()) {
+                            case IRKind::Assignment: {
+                                auto *a = dynamic_cast<AssignmentCode*>(instr.get());
+                                std::cout << a->var << " = " << a->left;
+                                if (!a->op.empty())
+                                    std::cout << " " << a->op << " " << a->right;
+                                std::cout << "\n";
+                                break;
+                            }
+                            case IRKind::Jump: {
+                                auto *j = dynamic_cast<JumpCode*>(instr.get());
+                                std::cout << "jump " << j->dist << "\n";
+                                break;
+                            }
+                            case IRKind::Label: {
+                                auto *l = dynamic_cast<LabelCode*>(instr.get());
+                                std::cout << l->label << ":\n";
+                                break;
+                            }
+                            case IRKind::Compare: {
+                                auto *c = dynamic_cast<CompareCodeIR*>(instr.get());
+                                std::cout << "if " << c->left << " " << c->operation
+                                          << " " << c->right << " goto " << c->jump << "\n";
+                                break;
+                            }
+                            case IRKind::Print: {
+                                auto *p = dynamic_cast<PrintCodeIR*>(instr.get());
+                                std::cout << "print(" << p->type << ", " << p->value << ")\n";
+                                break;
+                            }
                         }
                     }
                 }
-                std::cout << "\n===== NASM =====\n";
 
                 CodeGenerator codegen(
                         gen.code,
@@ -217,8 +269,7 @@ int main()
                         gen.constants
                 );
 
-                const std::string asm_path = "out.asm";
-                codegen.writeAsm(asm_path);
+                codegen.writeAsm(cfg.target_path);
             }
             else
             {
