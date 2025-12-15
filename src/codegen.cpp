@@ -1,8 +1,9 @@
 #include "codegen.hpp"
-#include <fstream>
+#include <algorithm>
 #include <array>
-#include <cstdint>
 #include <cctype>
+#include <cstdint>
+#include <fstream>
 
 using namespace std::literals;
 
