@@ -9,11 +9,36 @@
 #include "codegen.hpp"
 
 // Flex/Bison
-typedef struct yy_buffer_state *YY_BUFFER_STATE;
-YY_BUFFER_STATE yy_scan_string(const char* str);
-void yy_delete_buffer(YY_BUFFER_STATE b);
-extern int yyparse();
+struct yy_buffer_state;
+using YYBufferState = yy_buffer_state*;
+
+YYBufferState yy_scan_string(const char* str);
+void yy_delete_buffer(YYBufferState b);
+int yyparse();
+
 extern std::shared_ptr<Node> g_ast_root;
+
+class FlexBuffer {
+public:
+    explicit FlexBuffer(const std::string& input)
+            : buf_(yy_scan_string(input.c_str())) {}
+
+    FlexBuffer(const FlexBuffer&) = delete;
+    FlexBuffer& operator=(const FlexBuffer&) = delete;
+
+    FlexBuffer(FlexBuffer&& other) noexcept : buf_(other.buf_) {
+        other.buf_ = nullptr;
+    }
+
+    ~FlexBuffer() {
+        if (buf_)
+            yy_delete_buffer(buf_);
+    }
+
+private:
+    YYBufferState buf_;
+};
+
 
 static void print_ast(const std::shared_ptr<Node> &node,
                       std::string_view prefix = "",
@@ -212,9 +237,8 @@ int main(int argc, char** argv)
 
         try
         {
-            YY_BUFFER_STATE buf = yy_scan_string(input.c_str());
+            FlexBuffer f_buffer(input);
             int parse_result = yyparse();
-            yy_delete_buffer(buf);
 
             if (parse_result == 0)
             {
