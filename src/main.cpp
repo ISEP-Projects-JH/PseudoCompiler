@@ -5,6 +5,7 @@
 
 #include "ast.hpp"
 #include "ir.hpp"
+#include "codegen.hpp"
 
 // Flex/Bison
 typedef struct yy_buffer_state *YY_BUFFER_STATE;
@@ -208,6 +209,16 @@ int main()
                         }
                     }
                 }
+                std::cout << "\n===== NASM =====\n";
+
+                CodeGenerator codegen(
+                        gen.code,
+                        gen.identifiers,
+                        gen.constants
+                );
+
+                const std::string asm_path = "out.asm";
+                codegen.writeAsm(asm_path);
             }
             else
             {

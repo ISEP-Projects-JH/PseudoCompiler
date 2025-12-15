@@ -26,7 +26,7 @@ jobs:
           sudo apt-get remove -y man-db || true
           echo "man-db hold" | sudo dpkg --set-selections
           sudo apt-get install -y --no-install-recommends eatmydata
-          sudo eatmydata apt-get install -y --no-install-recommends ninja-build g++ cmake flex bison
+          sudo eatmydata apt-get install -y --no-install-recommends ninja-build g++ cmake flex bison nasm
 
       - name: Configure and Build
         run: |
@@ -35,12 +35,18 @@ jobs:
           cmake -G Ninja ..
           ninja
 
-      - name: Run Program
-        id: runprog
+      - name: Run Compiler (generate asm)
         run: |
           cd build
-          printf "q;\n" | ./compiler > ../output.txt
-          echo "Program executed successfully"
+          printf "q;\n" | ./compiler
+          echo "Compiler executed, output.asm generated"
+
+      - name: Assemble, Link and Run Generated Program
+        run: |
+          cd build
+          nasm -f elf64 output.asm -o output.o
+          ld output.o -o output
+          ./output > ../output.txt
 
       - name: Compare Output with expected.txt
         run: |

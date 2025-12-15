@@ -1,5 +1,6 @@
 #pragma once
 #include "ir.hpp"
+#include <vector>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -10,9 +11,8 @@ public:
     CodeGenerator(const InterCodeArray &arr,
                   const std::unordered_map<std::string, std::string> &identifiers,
                   const std::unordered_map<std::string, std::string> &constants,
-                  const std::unordered_map<std::string, std::string> &tempmap);
-    void writeAsm(std::string_view path);
-    int assembleAndRun(std::string_view asmPath, std::string_view objPath, std::string_view exePath);
+                  const std::unordered_map<std::string, std::string> &tempmap = {});
+    void writeAsm(const std::string &path);
 
 private:
     void pr(std::string_view s);
@@ -25,13 +25,16 @@ private:
     void gen_label(const LabelCode &l);
     void gen_compare(const CompareCodeIR &c);
     void gen_print(const PrintCodeIR &p);
-    void gen_support_functions();
-    static std::string handleVar(std::string_view a, const std::unordered_map<std::string, std::string> &tempmap);
+    void gen_print_num_function();
+    void gen_print_string_function();
+    static std::string handleVar(const std::string &a, const std::unordered_map<std::string, std::string> &tempmap);
 
 private:
     const InterCodeArray &arr;
     std::unordered_map<std::string, std::string> ids;
     std::unordered_map<std::string, std::string> consts;
     std::unordered_map<std::string, std::string> tempmap;
-    std::string out;
+    std::vector<char> out;
+    bool need_print_num = false;
+    bool need_print_string = false;
 };

@@ -78,6 +78,9 @@ std::string IntermediateCodeGen::exec_expr(const std::shared_ptr<Node> &n)
 
 void IntermediateCodeGen::exec_assignment(const std::shared_ptr<Assignment> &a)
 {
+    if (!identifiers.count(a->identifier.value)) {
+        identifiers[a->identifier.value] = "string";
+    }
     auto right = exec_expr(a->expression);
     arr.append(make_assign(a->identifier.value, right, "", ""));
 }
