@@ -39,12 +39,12 @@ jobs:
         run: |
           cd build
           printf "q;\n" | ./compiler
-          echo "Compiler executed, output.asm generated"
+          echo "Compiler executed, out.asm generated"
 
       - name: Assemble, Link and Run Generated Program
         run: |
           cd build
-          nasm -f elf64 output.asm -o output.o
+          nasm -f elf64 out.asm -o output.o
           ld output.o -o output
           ./output > ../output.txt
 
