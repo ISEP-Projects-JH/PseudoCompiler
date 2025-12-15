@@ -14,10 +14,10 @@ struct StrMap {
 
 static std::string op_to_asm(std::string_view op) {
     static constexpr std::array<StrMap, 4> table{{
-                                                         { "*"sv, "imul"sv },
-                                                         { "+"sv, "add"sv  },
-                                                         { "-"sv, "sub"sv  },
-                                                         { "/"sv, "idiv"sv },
+                                                         {"*"sv, "imul"sv},
+                                                         {"+"sv, "add"sv},
+                                                         {"-"sv, "sub"sv},
+                                                         {"/"sv, "idiv"sv},
                                                  }};
 
     auto it = std::lower_bound(
@@ -35,12 +35,12 @@ static std::string op_to_asm(std::string_view op) {
 
 static std::string cmp_to_jmp(std::string_view c) {
     static constexpr std::array<StrMap, 6> table{{
-                                                         { "!="sv, "jne"sv },
-                                                         { "<"sv,  "jl"sv  },
-                                                         { "<="sv, "jle"sv },
-                                                         { "=="sv, "je"sv  },
-                                                         { ">"sv,  "jg"sv  },
-                                                         { ">="sv, "jge"sv },
+                                                         {"!="sv, "jne"sv},
+                                                         {"<"sv, "jl"sv},
+                                                         {"<="sv, "jle"sv},
+                                                         {"=="sv, "je"sv},
+                                                         {">"sv, "jg"sv},
+                                                         {">="sv, "jge"sv},
                                                  }};
 
     auto it = std::lower_bound(
@@ -90,16 +90,62 @@ void CodeGenerator::gen_variables() {
         pr(S);
     }
 
-    for (auto &kv : ids) {
+    for (auto &kv: ids) {
         pr("\t" + kv.first + " resb 8");
     }
 }
 
+static inline void append_u8(std::vector<char> &buf, unsigned char v) {
+    if (v >= 100) {
+        buf.push_back(static_cast<char>(48 + v / 100));
+        v %= 100;
+        buf.push_back(static_cast<char>(48 + v / 10));
+        buf.push_back(static_cast<char>(48 + v % 10));
+    } else if (v >= 10) {
+        buf.push_back(static_cast<char>(48 + v / 10));
+        buf.push_back(static_cast<char>(48 + v % 10));
+    } else {
+        buf.push_back(static_cast<char>(48 + v));
+    }
+}
+
+static constexpr char DB_PREFIX[] = "\tdb ";
+static constexpr char COMMA_SPACE[] = ", ";
+static constexpr char NL_NUL[] = "10, 0";
+
+
 void CodeGenerator::gen_start() {
     pr("section .data");
+
+    std::vector<char> buf;
+    buf.reserve(128);
+
     for (auto &kv: consts) {
-        pr("\t" + kv.first + " db \"" + kv.second + "\",10,0");
+        buf.clear();
+
+        // "\t<label> db "
+        buf.push_back('\t');
+        buf.insert(buf.end(), kv.first.begin(), kv.first.end());
+        buf.push_back(' ');
+        buf.insert(buf.end(), std::begin(DB_PREFIX) + 1,
+                   std::end(DB_PREFIX) - 1); // skip '\t' duplication
+
+        // string bytes
+        for (unsigned char c: kv.second) {
+            append_u8(buf, c);
+            buf.insert(buf.end(),
+                       std::begin(COMMA_SPACE),
+                       std::end(COMMA_SPACE) - 1);
+        }
+
+        // newline + NUL
+        buf.insert(buf.end(),
+                   std::begin(NL_NUL),
+                   std::end(NL_NUL) - 1);
+
+        pr(std::string_view(buf.data(), buf.size()));
     }
+
     const auto S = R"(section .text
 	global _start
 
@@ -200,7 +246,7 @@ void CodeGenerator::gen_code() {
     }
 }
 
-void CodeGenerator::writeAsm(const std::string& path) {
+void CodeGenerator::writeAsm(const std::string &path) {
     out.clear();
 
     // MUST reset every time
