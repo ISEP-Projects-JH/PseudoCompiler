@@ -48,14 +48,14 @@ NL         [\n]
 \"([^\"\\]|\\.)*\"       {
     std::string s(yytext + 1, yyleng - 2);
     /* Store the Token struct in yylval (in the 'token' field) */
-    yylval.token = Token{TokenType::String, s, yylineno};
+    yylval.token = pseu::lexer::Token{pseu::lexer::TokenType::String, s, yylineno};
     /* Return the token ID defined in Bison */
     return T_STRING;
 }
 
 
 "=="|">="|"<="|"!="      {
-    yylval.token = Token{TokenType::Comparison,
+    yylval.token = pseu::lexer::Token{pseu::lexer::TokenType::Comparison,
                               std::string(yytext, yyleng), yylineno};
     return T_COMPARISON;
 }
@@ -75,7 +75,7 @@ NL         [\n]
 
 
 "<"|">"                  {
-    yylval.token = Token{TokenType::Comparison,
+    yylval.token = pseu::lexer::Token{pseu::lexer::TokenType::Comparison,
                               std::string(yytext, yyleng), yylineno};
     return T_COMPARISON;
 }
@@ -94,14 +94,14 @@ NL         [\n]
     else if (s == "string") return T_STRINGKW;
     else {
         /* It's a variable. Pass the Token struct via yylval. */
-        yylval.token = Token{TokenType::Var, "V" + s, yylineno};
+        yylval.token = pseu::lexer::Token{pseu::lexer::TokenType::Var, "V" + s, yylineno};
         return T_VAR;
     }
 }
 
 {DIGIT}+                 {
     /* It's an integer literal. Pass the Token struct via yylval. */
-    yylval.token = Token{TokenType::IntLit,
+    yylval.token = pseu::lexer::Token{pseu::lexer::TokenType::IntLit,
                               std::string(yytext, yyleng), yylineno};
     return T_INTLIT;
 }

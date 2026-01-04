@@ -1,6 +1,20 @@
 cmake_minimum_required(VERSION 3.16)
 project(CompilerForNASMCpp LANGUAGES CXX)
 
+include(FetchContent)
+
+# ---- JH-Toolkit configuration (must be BEFORE FetchContent_MakeAvailable) ----
+set(CMAKE_BUILD_TYPE Release CACHE STRING "" FORCE)
+# use Release to invalidate tests/examples in JH-Toolkit
+
+FetchContent_Declare(
+        JH_Toolkit
+        GIT_REPOSITORY https://github.com/JeongHan-Bae/JH-Toolkit.git
+        GIT_TAG        1.4.0-dev
+)
+
+FetchContent_MakeAvailable(JH_Toolkit)
+
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -32,5 +46,7 @@ add_executable(compiler
 )
 
 target_include_directories(compiler PRIVATE ${INC_DIR} ${CMAKE_CURRENT_BINARY_DIR})
+
+target_link_libraries(compiler PRIVATE jh-toolkit)
 
 target_compile_options(compiler PRIVATE -fno-rtti)

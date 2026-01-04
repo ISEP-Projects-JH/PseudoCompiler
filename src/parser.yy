@@ -15,7 +15,7 @@ extern int yylineno;
 void yyerror(const char *s);
 
 // This will hold the final, complete AST
-std::shared_ptr<ASTNode> g_ast_root;
+std::shared_ptr<pseu::ast::ASTNode> g_ast_root;
 
 // default
 template <typename T>
@@ -24,28 +24,28 @@ static int node_line_impl(const T&)
     return yylineno;
 }
 
-static int node_line_impl(const NumberNode& num)
+static int node_line_impl(const pseu::ast::NumberNode& num)
 {
     return num.tok.line;
 }
 
-static int node_line_impl(const IdentifierNode& id)
+static int node_line_impl(const pseu::ast::IdentifierNode& id)
 {
     return id.tok.line;
 }
 
-static int node_line_impl(const BinOpNode& bin)
+static int node_line_impl(const pseu::ast::BinOpNode& bin)
 {
     return bin.op_tok.line;
 }
 
-static int node_line_impl(const Assignment& assign)
+static int node_line_impl(const pseu::ast::Assignment& assign)
 {
     return assign.identifier.line;
 }
 
 
-static int node_line(const std::shared_ptr<ASTNode>& node)
+static int node_line(const std::shared_ptr<pseu::ast::ASTNode>& node)
 {
     if (!node)
         return yylineno;
@@ -72,9 +72,9 @@ static int node_line(const std::shared_ptr<ASTNode>& node)
     #include "tokens.hpp"
 
     struct SemanticValue {
-        std::shared_ptr<ASTNode> node;
-        std::vector<Token> token_list;
-        Token token;
+        std::shared_ptr<pseu::ast::ASTNode> node;
+        std::vector<pseu::lexer::Token> token_list;
+        pseu::lexer::Token token;
     };
 }
 
@@ -120,8 +120,8 @@ statements
     }
     | statements statement
     {
-        auto st = std::make_shared<ASTNode>(Statement{});
-        auto& stmt = std::get<Statement>(*st);
+        auto st = std::make_shared<pseu::ast::ASTNode>(pseu::ast::Statement{});
+        auto& stmt = std::get<pseu::ast::Statement>(*st);
         stmt.left  = $1.node; // The previous statements
         stmt.right = $2.node; // The new statement
         $$.node = st;        // Pass the combined list up
@@ -150,21 +150,21 @@ expr
     }
     | expr '+' term  // $1 is 'expr', $2 is '+', $3 is 'term'
     {
-        auto bin = std::make_shared<ASTNode>(BinOpNode{});
+        auto bin = std::make_shared<pseu::ast::ASTNode>(pseu::ast::BinOpNode{});
 
-        auto& b = std::get<BinOpNode>(*bin);
+        auto& b = std::get<pseu::ast::BinOpNode>(*bin);
         b.left  = $1.node;
-        b.op_tok = Token{TokenType::Arth, "+", node_line($1.node)};
+        b.op_tok = pseu::lexer::Token{pseu::lexer::TokenType::Arth, "+", node_line($1.node)};
         b.right = $3.node;
 
         $$.node = bin;
     }
     | expr '-' term
     {
-        auto bin = std::make_shared<ASTNode>(BinOpNode{});
-        auto& b = std::get<BinOpNode>(*bin);
+        auto bin = std::make_shared<pseu::ast::ASTNode>(pseu::ast::BinOpNode{});
+        auto& b = std::get<pseu::ast::BinOpNode>(*bin);
         b.left = $1.node;
-        b.op_tok = Token{TokenType::Arth, "-", node_line($1.node)};
+        b.op_tok = pseu::lexer::Token{pseu::lexer::TokenType::Arth, "-", node_line($1.node)};
         b.right = $3.node;
         $$.node = bin;
     }
@@ -177,20 +177,20 @@ term
     }
     | term '*' factor
     {
-        auto bin = std::make_shared<ASTNode>(BinOpNode{});
-        auto& b = std::get<BinOpNode>(*bin);
+        auto bin = std::make_shared<pseu::ast::ASTNode>(pseu::ast::BinOpNode{});
+        auto& b = std::get<pseu::ast::BinOpNode>(*bin);
         b.left = $1.node;
-        b.op_tok = Token{TokenType::Arth, "*", node_line($1.node)};
+        b.op_tok = pseu::lexer::Token{pseu::lexer::TokenType::Arth, "*", node_line($1.node)};
         b.right = $3.node;
         $$.node = bin;
     }
 
     | term '/' factor
     {
-        auto bin = std::make_shared<ASTNode>(BinOpNode{});
-        auto& b = std::get<BinOpNode>(*bin);
+        auto bin = std::make_shared<pseu::ast::ASTNode>(pseu::ast::BinOpNode{});
+        auto& b = std::get<pseu::ast::BinOpNode>(*bin);
         b.left = $1.node;
-        b.op_tok = Token{TokenType::Arth, "/", node_line($1.node)};
+        b.op_tok = pseu::lexer::Token{pseu::lexer::TokenType::Arth, "/", node_line($1.node)};
         b.right = $3.node;
         $$.node = bin;
     }
@@ -201,11 +201,11 @@ factor
     : T_INTLIT
     {
         // $1 is the Token from the scanner (via %union.token)
-        $$.node = std::make_shared<ASTNode>(NumberNode{$1.token});
+        $$.node = std::make_shared<pseu::ast::ASTNode>(pseu::ast::NumberNode{$1.token});
     }
     | T_VAR
     {
-        $$.node = std::make_shared<ASTNode>(IdentifierNode{$1.token});
+        $$.node = std::make_shared<pseu::ast::ASTNode>(pseu::ast::IdentifierNode{$1.token});
     }
     | T_LPAREN expr T_RPAREN
     {
@@ -213,7 +213,7 @@ factor
     }
     | T_STRING
     {
-        $$.node = std::make_shared<ASTNode>(StringLiteralNode{$1.token});
+        $$.node = std::make_shared<pseu::ast::ASTNode>(pseu::ast::StringLiteralNode{$1.token});
     }
     ;
 
@@ -222,8 +222,8 @@ factor
 assignment
     : T_VAR T_ASSIGN expr T_SEMICOLON
     {
-        auto a = std::make_shared<ASTNode>(Assignment{});
-        auto& as = std::get<Assignment>(*a);
+        auto a = std::make_shared<pseu::ast::ASTNode>(pseu::ast::Assignment{});
+        auto& as = std::get<pseu::ast::Assignment>(*a);
         as.identifier = $1.token;
         as.expression = $3.node;
         $$.node = a;
@@ -234,8 +234,8 @@ assignment
 if_statement
     : T_IF T_LPAREN condition T_RPAREN T_LBRACE statements T_RBRACE
     {
-        auto ifs = std::make_shared<ASTNode>(IfStatement{});
-        auto& if_stmt = std::get<IfStatement>(*ifs);
+        auto ifs = std::make_shared<pseu::ast::ASTNode>(pseu::ast::IfStatement{});
+        auto& if_stmt = std::get<pseu::ast::IfStatement>(*ifs);
         if_stmt.if_condition = $3.node;
         if_stmt.if_body = $6.node;
         if_stmt.else_body = nullptr;
@@ -244,8 +244,8 @@ if_statement
     | T_IF T_LPAREN condition T_RPAREN T_LBRACE statements T_RBRACE
       T_ELSE T_LBRACE statements T_RBRACE
     {
-        auto ifs = std::make_shared<ASTNode>(IfStatement{});
-        auto& if_stmt = std::get<IfStatement>(*ifs);
+        auto ifs = std::make_shared<pseu::ast::ASTNode>(pseu::ast::IfStatement{});
+        auto& if_stmt = std::get<pseu::ast::IfStatement>(*ifs);
         if_stmt.if_condition = $3.node;
         if_stmt.if_body = $6.node;
         if_stmt.else_body = $10.node;
@@ -257,7 +257,7 @@ if_statement
 condition
     : expr T_COMPARISON expr
     {
-        $$.node = std::make_shared<ASTNode>(Condition{
+        $$.node = std::make_shared<pseu::ast::ASTNode>(pseu::ast::Condition{
             $1.node,
             $2.token,
             $3.node
@@ -270,8 +270,8 @@ condition
 while_statement
     : T_WHILE T_LPAREN condition T_RPAREN T_LBRACE statements T_RBRACE
     {
-        auto w = std::make_shared<ASTNode>(WhileStatement{});
-        auto& w_stmt = std::get<WhileStatement>(*w);
+        auto w = std::make_shared<pseu::ast::ASTNode>(pseu::ast::WhileStatement{});
+        auto& w_stmt = std::get<pseu::ast::WhileStatement>(*w);
         w_stmt.condition = $3.node;
         w_stmt.body = $6.node;
         $$.node = w;
@@ -281,27 +281,27 @@ while_statement
 printing
     : T_PRINT T_LPAREN expr T_RPAREN T_SEMICOLON
     {
-        auto p = std::make_shared<ASTNode>(PrintStatement{});
-        auto& p_stmt = std::get<PrintStatement>(*p);
+        auto p = std::make_shared<pseu::ast::ASTNode>(pseu::ast::PrintStatement{});
+        auto& p_stmt = std::get<pseu::ast::PrintStatement>(*p);
         p_stmt.type = "int";
         p_stmt.intExpr = $3.node;
         $$.node = p;
     }
     | T_PRINTS T_LPAREN T_STRING T_RPAREN T_SEMICOLON
     {
-        auto p = std::make_shared<ASTNode>(PrintStatement{});
-        auto& p_stmt = std::get<PrintStatement>(*p);
+        auto p = std::make_shared<pseu::ast::ASTNode>(pseu::ast::PrintStatement{});
+        auto& p_stmt = std::get<pseu::ast::PrintStatement>(*p);
         p_stmt.type = "string";
         p_stmt.strValue = $3.token.value;
         $$.node = p;
     }
     | T_PRINTS T_LPAREN T_VAR T_RPAREN T_SEMICOLON
     {
-        auto p = std::make_shared<ASTNode>(PrintStatement{});
-        auto& p_stmt = std::get<PrintStatement>(*p);
+        auto p = std::make_shared<pseu::ast::ASTNode>(pseu::ast::PrintStatement{});
+        auto& p_stmt = std::get<pseu::ast::PrintStatement>(*p);
         p_stmt.type = "string";
 
-        p_stmt.intExpr = std::make_shared<ASTNode>(IdentifierNode{$3.token});
+        p_stmt.intExpr = std::make_shared<pseu::ast::ASTNode>(pseu::ast::IdentifierNode{$3.token});
 
         $$.node = p;
     }
@@ -310,37 +310,37 @@ printing
 declarations
     : T_INT identifier_list T_SEMICOLON
     {
-        auto decl = std::make_shared<ASTNode>(Declaration{});
-        auto& d = std::get<Declaration>(*decl);
-        d.declaration_type = Token{TokenType::Int, "int", yylineno};
+        auto decl = std::make_shared<pseu::ast::ASTNode>(pseu::ast::Declaration{});
+        auto& d = std::get<pseu::ast::Declaration>(*decl);
+        d.declaration_type = pseu::lexer::Token{pseu::lexer::TokenType::Int, "int", yylineno};
         d.identifiers = $2.token_list;
         $$.node = decl;
     }
     | T_INT T_VAR T_ASSIGN expr T_SEMICOLON
     {
-        auto decl = std::make_shared<ASTNode>(Declaration{});
-        auto& d = std::get<Declaration>(*decl);
-        d.declaration_type = Token{TokenType::Int, "int", yylineno};
+        auto decl = std::make_shared<pseu::ast::ASTNode>(pseu::ast::Declaration{});
+        auto& d = std::get<pseu::ast::Declaration>(*decl);
+        d.declaration_type = pseu::lexer::Token{pseu::lexer::TokenType::Int, "int", yylineno};
         d.identifiers = { $2.token };
         d.init_expr = $4.node;
         $$.node = decl;
     }
     | T_STRINGKW identifier_list T_SEMICOLON
     {
-        auto decl = std::make_shared<ASTNode>(Declaration{});
-        auto& d = std::get<Declaration>(*decl);
-        d.declaration_type = Token{TokenType::StringKw, "string", yylineno};
+        auto decl = std::make_shared<pseu::ast::ASTNode>(pseu::ast::Declaration{});
+        auto& d = std::get<pseu::ast::Declaration>(*decl);
+        d.declaration_type = pseu::lexer::Token{pseu::lexer::TokenType::StringKw, "string", yylineno};
         d.identifiers = $2.token_list;
         $$.node = decl;
     }
     | T_STRINGKW T_VAR T_ASSIGN T_STRING T_SEMICOLON
     {
         // Build string literal node
-        auto lit = std::make_shared<ASTNode>(StringLiteralNode{$4.token});
+        auto lit = std::make_shared<pseu::ast::ASTNode>(pseu::ast::StringLiteralNode{$4.token});
 
         // Assignment node
-        auto assign = std::make_shared<ASTNode>(Assignment{});
-        auto& ass = std::get<Assignment>(*assign);
+        auto assign = std::make_shared<pseu::ast::ASTNode>(pseu::ast::Assignment{});
+        auto& ass = std::get<pseu::ast::Assignment>(*assign);
         ass.identifier = $2.token;
         ass.expression = lit;
 
@@ -351,7 +351,7 @@ declarations
 identifier_list
     : T_VAR
     {
-        $$.token_list = std::vector<Token>{ $1.token };
+        $$.token_list = std::vector<pseu::lexer::Token>{ $1.token };
     }
     | identifier_list ',' T_VAR
     {

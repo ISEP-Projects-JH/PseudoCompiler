@@ -1,63 +1,38 @@
 #pragma once
+
 #include <string>
 #include <vector>
 #include <stdexcept>
 
-enum class TokenType
-{
-    If [[maybe_unused]],
-    Else [[maybe_unused]],
-    While [[maybe_unused]],
-    Int,
-    StringKw,
-    Print,
-    Prints [[maybe_unused]],
-    Assign [[maybe_unused]],
-    Comparison,
-    Arth,
-    L1 [[maybe_unused]],
-    R1 [[maybe_unused]],
-    L2 [[maybe_unused]],
-    R2 [[maybe_unused]],
-    Semicolon [[maybe_unused]],
-    Separator [[maybe_unused]],
-    Var,
-    IntLit,
-    String,
-    End
-};
+namespace pseu::lexer {
 
-struct Token final
-{
-    TokenType type{TokenType::End};
-    std::string value;
-    int line{0};
-};
+    enum class TokenType {
+        If,
+        Else [[maybe_unused]],
+        While [[maybe_unused]],
+        Int [[maybe_unused]],
+        StringKw [[maybe_unused]],
+        Print,
+        Prints [[maybe_unused]],
+        Assign [[maybe_unused]],
+        Comparison [[maybe_unused]],
+        Arth [[maybe_unused]],
+        L1 [[maybe_unused]],
+        R1 [[maybe_unused]],
+        L2 [[maybe_unused]],
+        R2 [[maybe_unused]],
+        Semicolon [[maybe_unused]],
+        Separator [[maybe_unused]],
+        Var [[maybe_unused]],
+        IntLit [[maybe_unused]],
+        String,
+        End
+    };
 
-class [[maybe_unused]] TokenArray final
-{
-public:
-    void push(const Token &t) { tokens.push_back(t); }
+    struct Token final {
+        TokenType type{TokenType::End};
+        std::string value;
+        int line{0};
+    };
 
-    [[maybe_unused]] [[nodiscard]] const Token &current() const
-    {
-        if (pos >= tokens.size())
-            throw std::out_of_range("token pos");
-        return tokens[pos];
-    }
-
-    [[maybe_unused]] void next()
-    {
-        if (pos + 1 < tokens.size())
-            ++pos;
-    }
-    [[nodiscard]] bool empty() const { return tokens.empty(); }
-
-    [[maybe_unused]] void appendEndIfMissing()
-    {
-        if (tokens.empty() || tokens.back().type != TokenType::End)
-            tokens.push_back(Token{TokenType::End, "END", tokens.empty() ? 1 : tokens.back().line});
-    }
-    std::vector<Token> tokens{};
-    size_t pos{};
-};
+} // namespace pseu::lexer

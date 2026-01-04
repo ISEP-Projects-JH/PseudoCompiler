@@ -19,224 +19,230 @@ void yy_delete_buffer(YYBufferState b);
 
 int yyparse();
 
-extern std::shared_ptr<ASTNode> g_ast_root;
+extern std::shared_ptr<pseu::ast::ASTNode> g_ast_root;
 
-class FlexBuffer {
-public:
-    explicit FlexBuffer(const std::string &input)
-            : buf_(yy_scan_string(input.c_str())) {}
+namespace detail {
 
-    FlexBuffer(const FlexBuffer &) = delete;
+    class FlexBuffer {
+    public:
+        explicit FlexBuffer(const std::string &input)
+                : buf_(yy_scan_string(input.c_str())) {}
 
-    FlexBuffer &operator=(const FlexBuffer &) = delete;
+        FlexBuffer(const FlexBuffer &) = delete;
 
-    FlexBuffer(FlexBuffer &&other) noexcept: buf_(other.buf_) {
-        other.buf_ = nullptr;
-    }
+        FlexBuffer &operator=(const FlexBuffer &) = delete;
 
-    ~FlexBuffer() {
-        if (buf_)
-            yy_delete_buffer(buf_);
-    }
-
-private:
-    YYBufferState buf_;
-};
-
-struct AstStackItem {
-    std::shared_ptr<ASTNode> node;
-    std::string prefix;
-    bool isLast;
-};
-
-template<typename T>
-static void print_ast_node(const T &, std::string_view, bool) {
-    std::cout << "Unknown ASTNode\n";
-}
-
-static void print_ast_node(const NumberNode &n, std::string_view, bool) {
-    std::cout << "Number: " << n.tok.value << "\n";
-}
-
-static void print_ast_node(const IdentifierNode &n, std::string_view, bool) {
-    std::cout << "Identifier: " << n.tok.value << "\n";
-}
-
-static void print_ast_node(const StringLiteralNode &n, std::string_view, bool) {
-    std::cout << "StringLiteral: \"" << n.tok.value << "\"\n";
-}
-
-static void print_ast_node(const BinOpNode &n, std::string_view, bool) {
-    std::cout << "BinOp (" << n.op_tok.value << ")\n";
-}
-
-static void print_ast_node(const Condition &n, std::string_view, bool) {
-    std::cout << "Condition (" << n.comparison.value << ")\n";
-}
-
-static void print_ast_node(const IfStatement &, std::string_view, bool) {
-    std::cout << "If\n";
-}
-
-static void print_ast_node(const WhileStatement &, std::string_view, bool) {
-    std::cout << "While\n";
-}
-
-static void print_ast_node(const PrintStatement &p, std::string_view, bool) {
-    std::cout << "Print(" << p.type << ")\n";
-}
-
-static void print_ast_node(const Declaration &d, std::string_view, bool) {
-    std::cout << "Declaration (" << d.declaration_type.value << ")\n";
-}
-
-static void print_ast_node(const Assignment &, std::string_view, bool) {
-    std::cout << "Assignment\n";
-}
-
-static void print_ast_node(const Statement &, std::string_view, bool) {
-    std::cout << "Statement\n";
-}
-
-template<typename T>
-static void collect_children(const T &, std::vector<std::shared_ptr<ASTNode>> &) {
-}
-
-static void collect_children(const BinOpNode &n,
-                             std::vector<std::shared_ptr<ASTNode>> &out) {
-    out.push_back(n.left);
-    out.push_back(n.right);
-}
-
-static void collect_children(const Condition &n,
-                             std::vector<std::shared_ptr<ASTNode>> &out) {
-    out.push_back(n.left_expression);
-    out.push_back(n.right_expression);
-}
-
-static void collect_children(const IfStatement &n,
-                             std::vector<std::shared_ptr<ASTNode>> &out) {
-    out.push_back(n.if_condition);
-    out.push_back(n.if_body);
-    if (n.else_body)
-        out.push_back(n.else_body);
-}
-
-static void collect_children(const WhileStatement &n,
-                             std::vector<std::shared_ptr<ASTNode>> &out) {
-    out.push_back(n.condition);
-    out.push_back(n.body);
-}
-
-static void collect_children(const PrintStatement &n,
-                             std::vector<std::shared_ptr<ASTNode>> &out) {
-    if (n.strValue.empty())
-        out.push_back(n.intExpr);
-}
-
-static void collect_children(const Declaration &n,
-                             std::vector<std::shared_ptr<ASTNode>> &out) {
-    if (n.init_expr)
-        out.push_back(n.init_expr);
-}
-
-static void collect_children(const Assignment &n,
-                             std::vector<std::shared_ptr<ASTNode>> &out) {
-    out.push_back(n.expression);
-}
-
-static void collect_children(const Statement &n,
-                             std::vector<std::shared_ptr<ASTNode>> &out) {
-    if (n.left) out.push_back(n.left);
-    if (n.right) out.push_back(n.right);
-}
-
-static void print_ast(const std::shared_ptr<ASTNode> &root,
-                      std::string_view prefix = "",
-                      bool isLast = true) {
-    if (!root)
-        return;
-
-    std::vector<AstStackItem> stack;
-    stack.push_back({root, std::string(prefix), isLast});
-
-    while (!stack.empty()) {
-        auto cur = stack.back();
-        stack.pop_back();
-
-        std::cout << cur.prefix
-                  << (cur.isLast ? "└── " : "├── ");
-
-        std::visit(
-                [&](const auto &n) {
-                    print_ast_node(n, cur.prefix, cur.isLast);
-                },
-                *cur.node
-        );
-
-        std::string child_prefix =
-                cur.prefix + (cur.isLast ? "    " : "│   ");
-
-        std::vector<std::shared_ptr<ASTNode>> children;
-        std::visit(
-                [&](const auto &n) {
-                    collect_children(n, children);
-                },
-                *cur.node
-        );
-
-        for (size_t i = children.size(); i-- > 0;) {
-            stack.push_back({
-                                    children[i],
-                                    child_prefix,
-                                    i == children.size() - 1
-                            });
+        FlexBuffer(FlexBuffer &&other) noexcept: buf_(other.buf_) {
+            other.buf_ = nullptr;
         }
+
+        ~FlexBuffer() {
+            if (buf_)
+                yy_delete_buffer(buf_);
+        }
+
+    private:
+        YYBufferState buf_;
+    };
+
+    struct AstStackItem {
+        std::shared_ptr<pseu::ast::ASTNode> node;
+        std::string prefix;
+        bool isLast;
+    };
+
+    template<typename T>
+    static void print_ast_node(const T &, std::string_view, bool) {
+        std::cout << "Unknown ASTNode\n";
     }
-}
 
-namespace fs = std::filesystem;
+    static void print_ast_node(const pseu::ast::NumberNode &n, std::string_view, bool) {
+        std::cout << "Number: " << n.tok.value << "\n";
+    }
 
-struct Config {
-    std::string src_path = "read.txt";
-    std::string target_path = "out.asm";
-    bool print_ast = false;
-    bool print_ir = false;
-};
+    static void print_ast_node(const pseu::ast::IdentifierNode &n, std::string_view, bool) {
+        std::cout << "Identifier: " << n.tok.value << "\n";
+    }
 
-Config parse_args(int argc, char **argv) {
-    Config cfg;
+    static void print_ast_node(const pseu::ast::StringLiteralNode &n, std::string_view, bool) {
+        std::cout << "StringLiteral: \"" << n.tok.value << "\"\n";
+    }
 
-    for (int i = 1; i < argc; ++i) {
-        std::string arg = argv[i];
+    static void print_ast_node(const pseu::ast::BinOpNode &n, std::string_view, bool) {
+        std::cout << "BinOp (" << n.op_tok.value << ")\n";
+    }
 
-        if (arg == "-src") {
-            if (i + 1 >= argc)
-                throw std::runtime_error("Missing value for -src");
-            cfg.src_path = argv[++i];
-        } else if (arg == "-target") {
-            if (i + 1 >= argc)
-                throw std::runtime_error("Missing value for -target");
-            cfg.target_path = argv[++i];
-        } else if (arg == "--ast") {
-            cfg.print_ast = true;
-        } else if (arg == "--ir") {
-            cfg.print_ir = true;
-        } else {
-            throw std::runtime_error("Unknown argument: " + arg);
+    static void print_ast_node(const pseu::ast::Condition &n, std::string_view, bool) {
+        std::cout << "Condition (" << n.comparison.value << ")\n";
+    }
+
+    static void print_ast_node(const pseu::ast::IfStatement &, std::string_view, bool) {
+        std::cout << "If\n";
+    }
+
+    static void print_ast_node(const pseu::ast::WhileStatement &, std::string_view, bool) {
+        std::cout << "While\n";
+    }
+
+    static void print_ast_node(const pseu::ast::PrintStatement &p, std::string_view, bool) {
+        std::cout << "Print(" << p.type << ")\n";
+    }
+
+    static void print_ast_node(const pseu::ast::Declaration &d, std::string_view, bool) {
+        std::cout << "Declaration (" << d.declaration_type.value << ")\n";
+    }
+
+    static void print_ast_node(const pseu::ast::Assignment &, std::string_view, bool) {
+        std::cout << "Assignment\n";
+    }
+
+    static void print_ast_node(const pseu::ast::Statement &, std::string_view, bool) {
+        std::cout << "Statement\n";
+    }
+
+    template<typename T>
+    static void collect_children(const T &, std::vector<std::shared_ptr<pseu::ast::ASTNode>> &) {
+    }
+
+    static void collect_children(const pseu::ast::BinOpNode &n,
+                                 std::vector<std::shared_ptr<pseu::ast::ASTNode>> &out) {
+        out.emplace_back(n.left);
+        out.emplace_back(n.right);
+    }
+
+    static void collect_children(const pseu::ast::Condition &n,
+                                 std::vector<std::shared_ptr<pseu::ast::ASTNode>> &out) {
+        out.emplace_back(n.left_expression);
+        out.emplace_back(n.right_expression);
+    }
+
+    static void collect_children(const pseu::ast::IfStatement &n,
+                                 std::vector<std::shared_ptr<pseu::ast::ASTNode>> &out) {
+        out.emplace_back(n.if_condition);
+        out.emplace_back(n.if_body);
+        if (n.else_body)
+            out.emplace_back(n.else_body);
+    }
+
+    static void collect_children(const pseu::ast::WhileStatement &n,
+                                 std::vector<std::shared_ptr<pseu::ast::ASTNode>> &out) {
+        out.emplace_back(n.condition);
+        out.emplace_back(n.body);
+    }
+
+    static void collect_children(const pseu::ast::PrintStatement &n,
+                                 std::vector<std::shared_ptr<pseu::ast::ASTNode>> &out) {
+        if (n.strValue.empty())
+            out.emplace_back(n.intExpr);
+    }
+
+    static void collect_children(const pseu::ast::Declaration &n,
+                                 std::vector<std::shared_ptr<pseu::ast::ASTNode>> &out) {
+        if (n.init_expr)
+            out.emplace_back(n.init_expr);
+    }
+
+    static void collect_children(const pseu::ast::Assignment &n,
+                                 std::vector<std::shared_ptr<pseu::ast::ASTNode>> &out) {
+        out.emplace_back(n.expression);
+    }
+
+    static void collect_children(const pseu::ast::Statement &n,
+                                 std::vector<std::shared_ptr<pseu::ast::ASTNode>> &out) {
+        if (n.left) out.emplace_back(n.left);
+        if (n.right) out.emplace_back(n.right);
+    }
+
+    static void print_ast(const std::shared_ptr<pseu::ast::ASTNode> &root, std::string_view prefix = "") {
+        if (!root)
+            return;
+
+        std::vector<AstStackItem> stack;
+        stack.emplace_back(root, std::string(prefix), 1);
+
+        while (!stack.empty()) {
+            auto cur = stack.back();
+            stack.pop_back();
+
+            std::cout << cur.prefix
+                      << (cur.isLast ? "└── " : "├── ");
+
+            std::visit(
+                    [&](const auto &n) {
+                        print_ast_node(n, cur.prefix, cur.isLast);
+                    },
+                    *cur.node
+            );
+
+            std::string child_prefix =
+                    cur.prefix + (cur.isLast ? "    " : "│   ");
+
+            std::vector<std::shared_ptr<pseu::ast::ASTNode>> children;
+            std::visit(
+                    [&](const auto &n) {
+                        collect_children(n, children);
+                    },
+                    *cur.node
+            );
+
+            bool first = true;
+
+            for (auto &child: children | std::views::reverse) {
+                stack.emplace_back(
+                        child,
+                        child_prefix,
+                        first
+                );
+                first = false;
+            }
         }
     }
 
-    cfg.src_path = fs::absolute(fs::path(cfg.src_path)).lexically_normal().string();
-    cfg.target_path = fs::absolute(fs::path(cfg.target_path)).lexically_normal().string();
+    namespace fs = std::filesystem;
 
-    return cfg;
-}
+    struct Config {
+        std::string src_path = "read.txt";
+        std::string target_path = "out.asm";
+        bool print_ast = false;
+        bool print_ir = false;
+    };
+
+    Config parse_args(int argc, char **argv) {
+        Config cfg;
+
+        for (int i = 1; i < argc; ++i) {
+            std::string arg = argv[i];
+
+            if (arg == "-src") {
+                if (i + 1 >= argc)
+                    throw std::runtime_error("Missing value for -src");
+                cfg.src_path = argv[++i];
+            } else if (arg == "-target") {
+                if (i + 1 >= argc)
+                    throw std::runtime_error("Missing value for -target");
+                cfg.target_path = argv[++i];
+            } else if (arg == "--ast") {
+                cfg.print_ast = true;
+            } else if (arg == "--ir") {
+                cfg.print_ir = true;
+            } else {
+                throw std::runtime_error("Unknown argument: " + arg);
+            }
+        }
+
+        cfg.src_path = fs::absolute(fs::path(cfg.src_path)).lexically_normal().string();
+        cfg.target_path = fs::absolute(fs::path(cfg.target_path)).lexically_normal().string();
+
+        return cfg;
+    }
+
+} // namespace detail
 
 int main(int argc, char **argv) {
-    Config cfg;
+
+    detail::Config cfg;
     try {
-        cfg = parse_args(argc, argv);
+        cfg = detail::parse_args(argc, argv);
     } catch (const std::exception &e) {
         std::cerr << "Argument error: " << e.what() << "\n";
         return 1;
@@ -253,16 +259,16 @@ int main(int argc, char **argv) {
         std::string input = buffer.str();
 
         try {
-            FlexBuffer f_buffer(input);
+            detail::FlexBuffer f_buffer(input);
             int parse_result = yyparse();
 
             if (parse_result == 0) {
                 if (cfg.print_ast) {
                     std::cout << "===== AST =====\n";
-                    print_ast(g_ast_root);
+                    detail::print_ast(g_ast_root);
                 }
 
-                IntermediateCodeGen irgen(g_ast_root);
+                pseu::ir::IntermediateCodeGen irgen(g_ast_root);
                 auto gen = irgen.get();
 
                 if (cfg.print_ir) {
@@ -272,21 +278,21 @@ int main(int argc, char **argv) {
                         std::visit([&](auto &ir) {
                             using T = std::decay_t<decltype(ir)>;
 
-                            if constexpr (std::is_same_v<T, AssignmentCode>) {
+                            if constexpr (std::is_same_v<T, pseu::ir::AssignmentCode>) {
                                 std::cout << ir.var << " = " << ir.left;
                                 if (!ir.op.empty())
                                     std::cout << " " << ir.op << " " << ir.right;
                                 std::cout << "\n";
-                            } else if constexpr (std::is_same_v<T, JumpCode>) {
+                            } else if constexpr (std::is_same_v<T, pseu::ir::JumpCode>) {
                                 std::cout << "jump " << ir.dist << "\n";
-                            } else if constexpr (std::is_same_v<T, LabelCode>) {
+                            } else if constexpr (std::is_same_v<T, pseu::ir::LabelCode>) {
                                 std::cout << ir.label << ":\n";
-                            } else if constexpr (std::is_same_v<T, CompareCodeIR>) {
+                            } else if constexpr (std::is_same_v<T, pseu::ir::CompareCodeIR>) {
                                 std::cout << "if " << ir.left << " "
                                           << ir.operation << " "
                                           << ir.right << " goto "
                                           << ir.jump << "\n";
-                            } else if constexpr (std::is_same_v<T, PrintCodeIR>) {
+                            } else if constexpr (std::is_same_v<T, pseu::ir::PrintCodeIR>) {
                                 std::cout << "print(" << ir.type << ", "
                                           << ir.value << ")\n";
                             }
@@ -294,8 +300,7 @@ int main(int argc, char **argv) {
                     }
                 }
 
-
-                CodeGenerator codegen(
+                pseu::codegen::CodeGenerator codegen(
                         gen.code,
                         gen.identifiers,
                         gen.constants
