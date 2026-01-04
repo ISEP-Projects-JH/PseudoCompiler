@@ -6,15 +6,6 @@
 #include <variant>
 #include "ast.hpp"
 
-enum class IRKind
-{
-    Assignment,
-    Jump,
-    Label,
-    Compare,
-    Print
-};
-
 struct AssignmentCode;
 struct JumpCode;
 struct LabelCode;
@@ -29,57 +20,52 @@ using IRInstr = std::variant<
         PrintCodeIR
 >;
 
-struct AssignmentCode
+struct AssignmentCode final
 {
     std::string var;
     std::string left;
     std::string op;    // empty if none
     std::string right; // may be empty
-    [[nodiscard]] static IRKind kind() { return IRKind::Assignment; }
 };
 
-struct JumpCode
+struct JumpCode final
 {
     std::string dist;
-    [[nodiscard]] static IRKind kind() { return IRKind::Jump; }
 };
 
-struct LabelCode
+struct LabelCode final
 {
     std::string label;
-    [[nodiscard]] static IRKind kind() { return IRKind::Label; }
 };
 
-struct CompareCodeIR
+struct CompareCodeIR final
 {
     std::string left;
     std::string operation;
     std::string right;
     std::string jump;
-    [[nodiscard]] static IRKind kind() { return IRKind::Compare; }
 };
 
-struct PrintCodeIR
+struct PrintCodeIR final
 {
     std::string type; // "string" or "int"
     std::string value;
-    [[nodiscard]] static IRKind kind() { return IRKind::Print; }
 };
 
-struct InterCodeArray
+struct InterCodeArray final
 {
     std::vector<std::shared_ptr<IRInstr>> code;
     void append(const std::shared_ptr<IRInstr> &n) { code.push_back(n); }
 };
 
-struct GeneratedIR
+struct GeneratedIR final
 {
     InterCodeArray code;
     std::unordered_map<std::string, std::string> identifiers;
     std::unordered_map<std::string, std::string> constants;
 };
 
-class IntermediateCodeGen
+class IntermediateCodeGen final
 {
 public:
     explicit IntermediateCodeGen(const std::shared_ptr<ASTNode> &root);
@@ -99,6 +85,24 @@ private:
 
     [[maybe_unused]] [[nodiscard]] std::string currentLabel() const;
     std::string nextStringSym();
+
+    template <typename T>
+    std::string exec_expr_node(const T&);
+
+    [[maybe_unused]] std::string exec_expr_node(const IdentifierNode& id);
+    [[maybe_unused]] std::string exec_expr_node(const NumberNode& num);
+    [[maybe_unused]] std::string exec_expr_node(const StringLiteralNode& str);
+    [[maybe_unused]] std::string exec_expr_node(const BinOpNode& bin);
+
+    template <typename T>
+    void exec_statement_node(const T&);
+
+    [[maybe_unused]] void exec_statement_node(const Statement& st);
+    [[maybe_unused]] void exec_statement_node(const IfStatement& is);
+    [[maybe_unused]] void exec_statement_node(const WhileStatement& wh);
+    [[maybe_unused]] void exec_statement_node(const PrintStatement& pr);
+    [[maybe_unused]] void exec_statement_node(const Declaration& de);
+    [[maybe_unused]] void exec_statement_node(const Assignment& asg);
 
 private:
     std::shared_ptr<ASTNode> root;

@@ -35,14 +35,14 @@ using ASTNode = std::variant<
         Declaration
 >;
 
-struct NumberNode
+struct NumberNode final
 {
     Token tok;
     explicit NumberNode(Token t) : tok(std::move(t)) {}
     [[nodiscard]] std::string getValue() const { return tok.value; }
 };
 
-struct IdentifierNode
+struct IdentifierNode final
 {
     Token tok;
     explicit IdentifierNode(Token t) : tok(std::move(t)) {}
@@ -50,7 +50,7 @@ struct IdentifierNode
 };
 
 
-struct StringLiteralNode
+struct StringLiteralNode final
 {
     Token tok;
     explicit StringLiteralNode(Token t) : tok(std::move(t)) {}
@@ -62,7 +62,7 @@ struct StringLiteralNode
  * Binary Operation
  * ====================== */
 
-struct BinOpNode
+struct BinOpNode final
 {
     std::shared_ptr<ASTNode> left;
     Token op_tok;
@@ -74,7 +74,7 @@ struct BinOpNode
  * Statements List (linked tree)
  * ====================== */
 
-struct Statement
+struct Statement final
 {
     std::shared_ptr<ASTNode> left;
     std::shared_ptr<ASTNode> right; // may be null
@@ -87,7 +87,7 @@ struct Statement
  * std::make_shared<Condition>(expr, token, expr)
  * ====================== */
 
-struct Condition
+struct Condition final
 {
     std::shared_ptr<ASTNode> left_expression;
     Token comparison;
@@ -109,11 +109,11 @@ struct Condition
  *   else_body = Node* or null
  * ====================== */
 
-struct IfStatement
+struct IfStatement final
 {
     std::shared_ptr<ASTNode> if_condition;
     std::shared_ptr<ASTNode> if_body;
-    std::shared_ptr<ASTNode> else_body; // may be null
+    std::shared_ptr<ASTNode> else_body;   // may be null
 };
 
 
@@ -121,7 +121,7 @@ struct IfStatement
  * While
  * ====================== */
 
-struct WhileStatement
+struct WhileStatement final
 {
     std::shared_ptr<ASTNode> condition;
     std::shared_ptr<ASTNode> body;
@@ -135,11 +135,11 @@ struct WhileStatement
  *  - type = "string" => strValue
  * ====================== */
 
-struct PrintStatement
+struct PrintStatement final
 {
     std::string type;
     std::shared_ptr<ASTNode> intExpr;    // if type == "int"
-    std::string strValue;             // if type == "string"
+    std::string strValue;                // if type == "string"
 };
 
 
@@ -147,9 +147,9 @@ struct PrintStatement
  * Assignment
  * ====================== */
 
-struct Assignment
+struct Assignment final
 {
-    Token identifier;                 // e.g., T_VAR
+    Token identifier;                    // e.g., T_VAR
     std::shared_ptr<ASTNode> expression; // e.g., BinOpNode / NumberNode
 };
 
@@ -165,10 +165,10 @@ struct Assignment
  *   - init_expr (optional)
  * ====================== */
 
-struct Declaration
+struct Declaration final
 {
-    Token declaration_type;           // "int" or "string"
-    std::vector<Token> identifiers;   // list of var IDs
+    Token declaration_type;              // "int" or "string"
+    std::vector<Token> identifiers;      // list of var IDs
     std::shared_ptr<ASTNode> init_expr;  // only for int x = expr;
     Declaration() : init_expr(nullptr) {}
 };

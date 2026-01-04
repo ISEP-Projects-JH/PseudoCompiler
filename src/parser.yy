@@ -17,25 +17,47 @@ void yyerror(const char *s);
 // This will hold the final, complete AST
 std::shared_ptr<ASTNode> g_ast_root;
 
+// default
+template <typename T>
+static int node_line_impl(const T&)
+{
+    return yylineno;
+}
+
+static int node_line_impl(const NumberNode& num)
+{
+    return num.tok.line;
+}
+
+static int node_line_impl(const IdentifierNode& id)
+{
+    return id.tok.line;
+}
+
+static int node_line_impl(const BinOpNode& bin)
+{
+    return bin.op_tok.line;
+}
+
+static int node_line_impl(const Assignment& assign)
+{
+    return assign.identifier.line;
+}
+
+
 static int node_line(const std::shared_ptr<ASTNode>& node)
 {
     if (!node)
         return yylineno;
 
-    if (auto* num = std::get_if<NumberNode>(node.get()))
-        return num->tok.line;
-
-    if (auto* id = std::get_if<IdentifierNode>(node.get()))
-        return id->tok.line;
-
-    if (auto* bin = std::get_if<BinOpNode>(node.get()))
-        return bin->op_tok.line;
-
-    if (auto* assign = std::get_if<Assignment>(node.get()))
-        return assign->identifier.line;
-
-    return yylineno;
+    return std::visit(
+        [&](const auto& n) -> int {
+            return node_line_impl(n);
+        },
+        *node
+    );
 }
+
 
 %}
 

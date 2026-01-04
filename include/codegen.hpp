@@ -5,7 +5,7 @@
 #include <string_view>
 #include <unordered_map>
 
-class CodeGenerator
+class CodeGenerator final
 {
 public:
     CodeGenerator(const InterCodeArray &arr,

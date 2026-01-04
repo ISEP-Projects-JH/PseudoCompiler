@@ -27,7 +27,7 @@ enum class TokenType
     End
 };
 
-struct Token
+struct Token final
 {
     TokenType type{TokenType::End};
     std::string value;

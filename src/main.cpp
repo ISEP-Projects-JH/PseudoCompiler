@@ -1,5 +1,6 @@
 #include <fstream>
 #include <iostream>
+#include <ranges>
 #include <sstream>
 #include <vector>
 #include <filesystem>
@@ -10,23 +11,26 @@
 
 // Flex/Bison
 struct yy_buffer_state;
-using YYBufferState = yy_buffer_state*;
+using YYBufferState = yy_buffer_state *;
 
-YYBufferState yy_scan_string(const char* str);
+YYBufferState yy_scan_string(const char *str);
+
 void yy_delete_buffer(YYBufferState b);
+
 int yyparse();
 
 extern std::shared_ptr<ASTNode> g_ast_root;
 
 class FlexBuffer {
 public:
-    explicit FlexBuffer(const std::string& input)
+    explicit FlexBuffer(const std::string &input)
             : buf_(yy_scan_string(input.c_str())) {}
 
-    FlexBuffer(const FlexBuffer&) = delete;
-    FlexBuffer& operator=(const FlexBuffer&) = delete;
+    FlexBuffer(const FlexBuffer &) = delete;
 
-    FlexBuffer(FlexBuffer&& other) noexcept : buf_(other.buf_) {
+    FlexBuffer &operator=(const FlexBuffer &) = delete;
+
+    FlexBuffer(FlexBuffer &&other) noexcept: buf_(other.buf_) {
         other.buf_ = nullptr;
     }
 
@@ -39,142 +43,168 @@ private:
     YYBufferState buf_;
 };
 
+struct AstStackItem {
+    std::shared_ptr<ASTNode> node;
+    std::string prefix;
+    bool isLast;
+};
 
-static void print_ast(const std::shared_ptr<ASTNode>& node,
-                      std::string_view prefix = "",
-                      bool isLast = true)
-{
-    if (!node)
-        return;
-
-    std::cout << prefix << (isLast ? "└── " : "├── ");
-
-    // ---------------- Number ----------------
-    if (auto* num = std::get_if<NumberNode>(node.get())) {
-        std::cout << "Number: " << num->tok.value << "\n";
-        return;
-    }
-
-    // ---------------- Identifier ----------------
-    if (auto* id = std::get_if<IdentifierNode>(node.get())) {
-        std::cout << "Identifier: " << id->tok.value << "\n";
-        return;
-    }
-
-    // ---------------- String Literal ----------------
-    if (auto* str = std::get_if<StringLiteralNode>(node.get())) {
-        std::cout << "StringLiteral: \"" << str->tok.value << "\"\n";
-        return;
-    }
-
-    // ---------------- BinOp ----------------
-    if (auto* bin = std::get_if<BinOpNode>(node.get())) {
-        std::cout << "BinOp (" << bin->op_tok.value << ")\n";
-        auto np = std::string(prefix) + (isLast ? "    " : "│   ");
-        print_ast(bin->left,  np, false);
-        print_ast(bin->right, np, true);
-        return;
-    }
-
-    // ---------------- Condition ----------------
-    if (auto* cond = std::get_if<Condition>(node.get())) {
-        std::cout << "Condition (" << cond->comparison.value << ")\n";
-        auto np = std::string(prefix) + (isLast ? "    " : "│   ");
-        print_ast(cond->left_expression,  np, false);
-        print_ast(cond->right_expression, np, true);
-        return;
-    }
-
-    // ---------------- IfStatement ----------------
-    if (auto* iff = std::get_if<IfStatement>(node.get())) {
-        std::cout << "If\n";
-        auto base = std::string(prefix) + (isLast ? "    " : "│   ");
-
-        print_ast(iff->if_condition, base, false);
-
-        std::cout << base << "├── Then\n";
-        print_ast(iff->if_body, base + "│   ", true);
-
-        std::cout << base << "└── Else\n";
-        print_ast(iff->else_body, base + "    ", true);
-        return;
-    }
-
-    // ---------------- WhileStatement ----------------
-    if (auto* wh = std::get_if<WhileStatement>(node.get())) {
-        std::cout << "While\n";
-        auto base = std::string(prefix) + (isLast ? "    " : "│   ");
-        print_ast(wh->condition, base, false);
-        print_ast(wh->body,      base, true);
-        return;
-    }
-
-    // ---------------- Print ----------------
-    if (auto* p = std::get_if<PrintStatement>(node.get())) {
-        std::cout << "Print(" << p->type << ")\n";
-        auto np = std::string(prefix) + (isLast ? "    " : "│   ");
-
-        if (!p->strValue.empty()) {
-            std::cout << np << "└── \"" << p->strValue << "\"\n";
-        } else {
-            print_ast(p->intExpr, np, true);
-        }
-        return;
-    }
-
-    // ---------------- Declaration ----------------
-    if (auto* decl = std::get_if<Declaration>(node.get())) {
-        std::cout << "Declaration (" << decl->declaration_type.value << ")\n";
-        auto np = std::string(prefix) + (isLast ? "    " : "│   ");
-
-        for (size_t i = 0; i < decl->identifiers.size(); ++i) {
-            bool last = (i == decl->identifiers.size() - 1 && !decl->init_expr);
-            std::cout << np << (last ? "└── " : "├── ");
-            std::cout << "Identifier: " << decl->identifiers[i].value << "\n";
-        }
-
-        if (decl->init_expr) {
-            std::cout << np << "└── init\n";
-            print_ast(decl->init_expr, np + "    ", true);
-        }
-        return;
-    }
-
-    // ---------------- Assignment ----------------
-    if (auto* a = std::get_if<Assignment>(node.get())) {
-        std::cout << "Assignment\n";
-        auto np = std::string(prefix) + (isLast ? "    " : "│   ");
-        std::cout << np << "├── Identifier: " << a->identifier.value << "\n";
-        print_ast(a->expression, np, true);
-        return;
-    }
-
-    // ---------------- Statement ----------------
-    if (auto* st = std::get_if<Statement>(node.get())) {
-        std::cout << "Statement\n";
-        auto np = std::string(prefix) + (isLast ? "    " : "│   ");
-        if (st->left)
-            print_ast(st->left, np, false);
-        if (st->right)
-            print_ast(st->right, np, true);
-        return;
-    }
-
+template<typename T>
+static void print_ast_node(const T &, std::string_view, bool) {
     std::cout << "Unknown ASTNode\n";
 }
 
+static void print_ast_node(const NumberNode &n, std::string_view, bool) {
+    std::cout << "Number: " << n.tok.value << "\n";
+}
+
+static void print_ast_node(const IdentifierNode &n, std::string_view, bool) {
+    std::cout << "Identifier: " << n.tok.value << "\n";
+}
+
+static void print_ast_node(const StringLiteralNode &n, std::string_view, bool) {
+    std::cout << "StringLiteral: \"" << n.tok.value << "\"\n";
+}
+
+static void print_ast_node(const BinOpNode &n, std::string_view, bool) {
+    std::cout << "BinOp (" << n.op_tok.value << ")\n";
+}
+
+static void print_ast_node(const Condition &n, std::string_view, bool) {
+    std::cout << "Condition (" << n.comparison.value << ")\n";
+}
+
+static void print_ast_node(const IfStatement &, std::string_view, bool) {
+    std::cout << "If\n";
+}
+
+static void print_ast_node(const WhileStatement &, std::string_view, bool) {
+    std::cout << "While\n";
+}
+
+static void print_ast_node(const PrintStatement &p, std::string_view, bool) {
+    std::cout << "Print(" << p.type << ")\n";
+}
+
+static void print_ast_node(const Declaration &d, std::string_view, bool) {
+    std::cout << "Declaration (" << d.declaration_type.value << ")\n";
+}
+
+static void print_ast_node(const Assignment &, std::string_view, bool) {
+    std::cout << "Assignment\n";
+}
+
+static void print_ast_node(const Statement &, std::string_view, bool) {
+    std::cout << "Statement\n";
+}
+
+template<typename T>
+static void collect_children(const T &, std::vector<std::shared_ptr<ASTNode>> &) {
+}
+
+static void collect_children(const BinOpNode &n,
+                             std::vector<std::shared_ptr<ASTNode>> &out) {
+    out.push_back(n.left);
+    out.push_back(n.right);
+}
+
+static void collect_children(const Condition &n,
+                             std::vector<std::shared_ptr<ASTNode>> &out) {
+    out.push_back(n.left_expression);
+    out.push_back(n.right_expression);
+}
+
+static void collect_children(const IfStatement &n,
+                             std::vector<std::shared_ptr<ASTNode>> &out) {
+    out.push_back(n.if_condition);
+    out.push_back(n.if_body);
+    if (n.else_body)
+        out.push_back(n.else_body);
+}
+
+static void collect_children(const WhileStatement &n,
+                             std::vector<std::shared_ptr<ASTNode>> &out) {
+    out.push_back(n.condition);
+    out.push_back(n.body);
+}
+
+static void collect_children(const PrintStatement &n,
+                             std::vector<std::shared_ptr<ASTNode>> &out) {
+    if (n.strValue.empty())
+        out.push_back(n.intExpr);
+}
+
+static void collect_children(const Declaration &n,
+                             std::vector<std::shared_ptr<ASTNode>> &out) {
+    if (n.init_expr)
+        out.push_back(n.init_expr);
+}
+
+static void collect_children(const Assignment &n,
+                             std::vector<std::shared_ptr<ASTNode>> &out) {
+    out.push_back(n.expression);
+}
+
+static void collect_children(const Statement &n,
+                             std::vector<std::shared_ptr<ASTNode>> &out) {
+    if (n.left) out.push_back(n.left);
+    if (n.right) out.push_back(n.right);
+}
+
+static void print_ast(const std::shared_ptr<ASTNode> &root,
+                      std::string_view prefix = "",
+                      bool isLast = true) {
+    if (!root)
+        return;
+
+    std::vector<AstStackItem> stack;
+    stack.push_back({root, std::string(prefix), isLast});
+
+    while (!stack.empty()) {
+        auto cur = stack.back();
+        stack.pop_back();
+
+        std::cout << cur.prefix
+                  << (cur.isLast ? "└── " : "├── ");
+
+        std::visit(
+                [&](const auto &n) {
+                    print_ast_node(n, cur.prefix, cur.isLast);
+                },
+                *cur.node
+        );
+
+        std::string child_prefix =
+                cur.prefix + (cur.isLast ? "    " : "│   ");
+
+        std::vector<std::shared_ptr<ASTNode>> children;
+        std::visit(
+                [&](const auto &n) {
+                    collect_children(n, children);
+                },
+                *cur.node
+        );
+
+        for (size_t i = children.size(); i-- > 0;) {
+            stack.push_back({
+                                    children[i],
+                                    child_prefix,
+                                    i == children.size() - 1
+                            });
+        }
+    }
+}
 
 namespace fs = std::filesystem;
 
 struct Config {
-    std::string src_path   = "read.txt";
+    std::string src_path = "read.txt";
     std::string target_path = "out.asm";
     bool print_ast = false;
-    bool print_ir  = false;
+    bool print_ir = false;
 };
 
-Config parse_args(int argc, char** argv)
-{
+Config parse_args(int argc, char **argv) {
     Config cfg;
 
     for (int i = 1; i < argc; ++i) {
@@ -184,40 +214,34 @@ Config parse_args(int argc, char** argv)
             if (i + 1 >= argc)
                 throw std::runtime_error("Missing value for -src");
             cfg.src_path = argv[++i];
-        }
-        else if (arg == "-target") {
+        } else if (arg == "-target") {
             if (i + 1 >= argc)
                 throw std::runtime_error("Missing value for -target");
             cfg.target_path = argv[++i];
-        }
-        else if (arg == "--ast") {
+        } else if (arg == "--ast") {
             cfg.print_ast = true;
-        }
-        else if (arg == "--ir") {
+        } else if (arg == "--ir") {
             cfg.print_ir = true;
-        }
-        else {
+        } else {
             throw std::runtime_error("Unknown argument: " + arg);
         }
     }
 
-    cfg.src_path    = fs::absolute(fs::path(cfg.src_path)).lexically_normal().string();
+    cfg.src_path = fs::absolute(fs::path(cfg.src_path)).lexically_normal().string();
     cfg.target_path = fs::absolute(fs::path(cfg.target_path)).lexically_normal().string();
 
     return cfg;
 }
 
-int main(int argc, char** argv)
-{
+int main(int argc, char **argv) {
     Config cfg;
     try {
         cfg = parse_args(argc, argv);
-    } catch (const std::exception& e) {
+    } catch (const std::exception &e) {
         std::cerr << "Argument error: " << e.what() << "\n";
         return 1;
     }
-    while (true)
-    {
+    while (true) {
         std::ifstream fin(cfg.src_path);
         if (!fin) {
             std::cerr << "Cannot open " << cfg.src_path << "\n";
@@ -228,13 +252,11 @@ int main(int argc, char** argv)
         buffer << fin.rdbuf();
         std::string input = buffer.str();
 
-        try
-        {
+        try {
             FlexBuffer f_buffer(input);
             int parse_result = yyparse();
 
-            if (parse_result == 0)
-            {
+            if (parse_result == 0) {
                 if (cfg.print_ast) {
                     std::cout << "===== AST =====\n";
                     print_ast(g_ast_root);
@@ -246,8 +268,8 @@ int main(int argc, char** argv)
                 if (cfg.print_ir) {
                     std::cout << "\n===== IR =====\n";
 
-                    for (auto& instr : gen.code.code) {
-                        std::visit([&](auto& ir) {
+                    for (auto &instr: gen.code.code) {
+                        std::visit([&](auto &ir) {
                             using T = std::decay_t<decltype(ir)>;
 
                             if constexpr (std::is_same_v<T, AssignmentCode>) {
@@ -255,20 +277,16 @@ int main(int argc, char** argv)
                                 if (!ir.op.empty())
                                     std::cout << " " << ir.op << " " << ir.right;
                                 std::cout << "\n";
-                            }
-                            else if constexpr (std::is_same_v<T, JumpCode>) {
+                            } else if constexpr (std::is_same_v<T, JumpCode>) {
                                 std::cout << "jump " << ir.dist << "\n";
-                            }
-                            else if constexpr (std::is_same_v<T, LabelCode>) {
+                            } else if constexpr (std::is_same_v<T, LabelCode>) {
                                 std::cout << ir.label << ":\n";
-                            }
-                            else if constexpr (std::is_same_v<T, CompareCodeIR>) {
+                            } else if constexpr (std::is_same_v<T, CompareCodeIR>) {
                                 std::cout << "if " << ir.left << " "
                                           << ir.operation << " "
                                           << ir.right << " goto "
                                           << ir.jump << "\n";
-                            }
-                            else if constexpr (std::is_same_v<T, PrintCodeIR>) {
+                            } else if constexpr (std::is_same_v<T, PrintCodeIR>) {
                                 std::cout << "print(" << ir.type << ", "
                                           << ir.value << ")\n";
                             }
@@ -284,14 +302,11 @@ int main(int argc, char** argv)
                 );
 
                 codegen.writeAsm(cfg.target_path);
-            }
-            else
-            {
+            } else {
                 std::cerr << "Parsing failed.\n";
             }
         }
-        catch (const std::exception &e)
-        {
+        catch (const std::exception &e) {
             std::cerr << e.what() << "\n";
         }
 
