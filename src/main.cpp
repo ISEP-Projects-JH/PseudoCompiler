@@ -9,20 +9,63 @@
 #include "ir.hpp"
 #include "codegen.hpp"
 
-// Flex/Bison
+/**
+ * @brief Opaque Flex buffer handle type.
+ *
+ * This type represents an internal Flex-managed buffer
+ * created by <code>yy_scan_string</code>.
+ */
 struct yy_buffer_state;
 using YYBufferState = yy_buffer_state *;
 
+/**
+ * @brief Create a Flex buffer from an in-memory string.
+ *
+ * The returned buffer must be released using
+ * <code>yy_delete_buffer</code>.
+ *
+ * @param str Null-terminated input string.
+ * @return Newly created Flex buffer.
+ */
 YYBufferState yy_scan_string(const char *str);
 
+/**
+ * @brief Destroy a Flex buffer previously created by Flex.
+ *
+ * @param b Buffer to destroy.
+ */
 void yy_delete_buffer(YYBufferState b);
 
+/**
+ * @brief Invoke the Bison-generated parser.
+ *
+ * On success, the global AST root will be populated.
+ *
+ * @return 0 on success, non-zero on parse error.
+ */
 int yyparse();
 
+/**
+ * @brief Global AST root produced by the parser.
+ *
+ * This pointer is owned by the parsing phase and
+ * consumed by later compilation stages.
+ */
 extern std::shared_ptr<pseu::ast::ASTNode> g_ast_root;
 
 namespace detail {
 
+    /**
+     * @brief RAII wrapper for Flex string buffers.
+     *
+     * This class ensures that a Flex buffer created by
+     * <code>yy_scan_string</code> is always released via
+     * <code>yy_delete_buffer</code>, even in the presence
+     * of exceptions.
+     *
+     * Copy is disabled to preserve single ownership.
+     * Move is allowed to support scoped transfer.
+     */
     class FlexBuffer {
     public:
         explicit FlexBuffer(const std::string &input)
@@ -45,61 +88,81 @@ namespace detail {
         YYBufferState buf_;
     };
 
+    /**
+     * @brief Stack entry used for non-recursive AST printing.
+     *
+     * Stores traversal state required to render a tree-like
+     * textual representation of the AST.
+     */
     struct AstStackItem {
         std::shared_ptr<pseu::ast::ASTNode> node;
         std::string prefix;
         bool isLast;
     };
 
+    /**
+     * @brief AST node printer.
+     *
+     * Prints <code>"Unknown ASTNode&bsol;n"</code> if no
+     * specialized overload exists for a node type.
+     */
     template<typename T>
-    static void print_ast_node(const T &, std::string_view, bool) {
+    static void print_ast_node(const T &, std::string_view) {
         std::cout << "Unknown ASTNode\n";
     }
 
-    static void print_ast_node(const pseu::ast::NumberNode &n, std::string_view, bool) {
+    static void print_ast_node(const pseu::ast::NumberNode &n, std::string_view) {
         std::cout << "Number: " << n.tok.value << "\n";
     }
 
-    static void print_ast_node(const pseu::ast::IdentifierNode &n, std::string_view, bool) {
+    static void print_ast_node(const pseu::ast::IdentifierNode &n, std::string_view) {
         std::cout << "Identifier: " << n.tok.value << "\n";
     }
 
-    static void print_ast_node(const pseu::ast::StringLiteralNode &n, std::string_view, bool) {
+    static void print_ast_node(const pseu::ast::StringLiteralNode &n, std::string_view) {
         std::cout << "StringLiteral: \"" << n.tok.value << "\"\n";
     }
 
-    static void print_ast_node(const pseu::ast::BinOpNode &n, std::string_view, bool) {
+    static void print_ast_node(const pseu::ast::BinOpNode &n, std::string_view) {
         std::cout << "BinOp (" << n.op_tok.value << ")\n";
     }
 
-    static void print_ast_node(const pseu::ast::Condition &n, std::string_view, bool) {
+    static void print_ast_node(const pseu::ast::Condition &n, std::string_view) {
         std::cout << "Condition (" << n.comparison.value << ")\n";
     }
 
-    static void print_ast_node(const pseu::ast::IfStatement &, std::string_view, bool) {
+    static void print_ast_node(const pseu::ast::IfStatement &, std::string_view) {
         std::cout << "If\n";
     }
 
-    static void print_ast_node(const pseu::ast::WhileStatement &, std::string_view, bool) {
+    static void print_ast_node(const pseu::ast::WhileStatement &, std::string_view) {
         std::cout << "While\n";
     }
 
-    static void print_ast_node(const pseu::ast::PrintStatement &p, std::string_view, bool) {
+    static void print_ast_node(const pseu::ast::PrintStatement &p, std::string_view) {
         std::cout << "Print(" << p.type << ")\n";
     }
 
-    static void print_ast_node(const pseu::ast::Declaration &d, std::string_view, bool) {
+    static void print_ast_node(const pseu::ast::Declaration &d, std::string_view) {
         std::cout << "Declaration (" << d.declaration_type.value << ")\n";
     }
 
-    static void print_ast_node(const pseu::ast::Assignment &, std::string_view, bool) {
+    static void print_ast_node(const pseu::ast::Assignment &, std::string_view) {
         std::cout << "Assignment\n";
     }
 
-    static void print_ast_node(const pseu::ast::Statement &, std::string_view, bool) {
+    static void print_ast_node(const pseu::ast::Statement &, std::string_view) {
         std::cout << "Statement\n";
     }
 
+    /**
+     * @brief Collect child AST nodes for traversal.
+     *
+     * This function is used by the AST printer to
+     * enumerate children in a type-specific manner.
+     *
+     * Default implementation collects no children.
+     */
     template<typename T>
     static void collect_children(const T &, std::vector<std::shared_ptr<pseu::ast::ASTNode>> &) {
     }
@@ -153,6 +216,15 @@ namespace detail {
         if (n.right) out.emplace_back(n.right);
     }
 
+    /**
+     * @brief Print an ASCII tree representation of the AST.
+     *
+     * Traverses the AST without recursion and emits a
+     * structured, human-readable tree to <code>stdout</code>.
+     *
+     * @param root Root AST node.
+     * @param prefix Optional initial indentation prefix.
+     */
     static void print_ast(const std::shared_ptr<pseu::ast::ASTNode> &root, std::string_view prefix = "") {
         if (!root)
             return;
@@ -169,7 +241,7 @@ namespace detail {
 
             std::visit(
                     [&](const auto &n) {
-                        print_ast_node(n, cur.prefix, cur.isLast);
+                        print_ast_node(n, cur.prefix);
                     },
                     *cur.node
             );
@@ -200,6 +272,12 @@ namespace detail {
 
     namespace fs = std::filesystem;
 
+    /**
+     * @brief Command-line configuration for the compiler frontend.
+     *
+     * Holds resolved paths and feature flags derived from
+     * command-line arguments.
+     */
     struct Config {
         std::string src_path = "read.txt";
         std::string target_path = "out.asm";
@@ -207,6 +285,18 @@ namespace detail {
         bool print_ir = false;
     };
 
+    /**
+     * @brief Parse command-line arguments.
+     *
+     * Converts raw argv input into a structured configuration.
+     * All paths are normalized to absolute form.
+     *
+     * @param argc Argument count.
+     * @param argv Argument vector.
+     * @return Parsed configuration.
+     *
+     * @throws std::runtime_error on invalid arguments.
+     */
     Config parse_args(int argc, char **argv) {
         Config cfg;
 

@@ -3,6 +3,38 @@
 
 namespace pseu {
 
+    /**
+     * @brief Translation-unit–local interning pool for IR instructions.
+     *
+     * <p>
+     * In this design, all IR nodes are treated as <b>pure data objects</b>:
+     * they have value semantics, immutable identity, and are fully defined
+     * by their structural contents. This makes them suitable for
+     * hash-based deduplication.
+     * </p>
+     *
+     * <p>
+     * IR instructions are wrapped in <code>std::variant</code> and stored
+     * inside a <code>jh::conc::flat_pool</code>, forming an arena-like
+     * contiguous storage domain that reduces allocation fragmentation
+     * while enabling structural deduplication.
+     * </p>
+     *
+     * <p>
+     * The pool capacity may grow as IR complexity increases. No explicit
+     * <code>resize_pool()</code> or shrinking is performed here:
+     * </p>
+     * <ul>
+     *   <li>growth implies a legitimate workload shape,</li>
+     *   <li>there is no benefit in reclaiming memory mid-compilation,</li>
+     *   <li>the compiler typically runs once and exits.</li>
+     * </ul>
+     *
+     * <p>
+     * Reuse-friendly semantics are retained only to allow repeated
+     * compilation within the same process.
+     * </p>
+     */
     inline ir::ir_pool_t pool{};
 
     static ir::ir_pool_t::ptr
@@ -70,7 +102,9 @@ namespace pseu {
 
     std::string ir::IntermediateCodeGen::nextLabel() { return "L" + std::to_string(lCounter++); }
 
-    [[maybe_unused]] std::string ir::IntermediateCodeGen::currentLabel() const { return "L" + std::to_string(lCounter); }
+    [[maybe_unused]] std::string ir::IntermediateCodeGen::currentLabel() const {
+        return "L" + std::to_string(lCounter);
+    }
 
     std::string ir::IntermediateCodeGen::nextStringSym() { return "S" + std::to_string(sCounter++); }
 

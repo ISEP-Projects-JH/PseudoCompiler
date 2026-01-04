@@ -9,11 +9,36 @@
 namespace pseu {
     using namespace std::literals;
 
+    /**
+     * @brief Compile-time string mapping entry.
+     *
+     * <p>
+     * Represents a simple key–value pair used for translating
+     * high-level operators or comparisons into assembly mnemonics.
+     * </p>
+     *
+     * <p>
+     * Stored as <code>std::string_view</code> to allow use in
+     * <code>constexpr</code> lookup tables without allocation.
+     * </p>
+     */
     struct StrMap {
         std::string_view key;
         std::string_view val;
     };
 
+    /**
+     * @brief Translate arithmetic operator to x86-64 instruction mnemonic.
+     *
+     * <p>
+     * Performs a lookup from a high-level binary operator
+     * (<code>+, -, *, /</code>) to the corresponding assembly instruction.
+     * </p>
+     *
+     * <p>
+     * Returns an empty string if the operator is not supported.
+     * </p>
+     */
     static std::string op_to_asm(std::string_view op) {
         static constexpr std::array<StrMap, 4> table{{
                                                              {"*"sv, "imul"sv},
@@ -34,7 +59,18 @@ namespace pseu {
         return {};
     }
 
-
+    /**
+     * @brief Translate comparison operator to conditional jump mnemonic.
+     *
+     * <p>
+     * Maps high-level comparison operators
+     * (<code>==, !=, <, <=, >, >=</code>) to x86-64 conditional jumps.
+     * </p>
+     *
+     * <p>
+     * Returns an empty string if the comparison is not supported.
+     * </p>
+     */
     static std::string cmp_to_jmp(std::string_view c) {
         static constexpr std::array<StrMap, 6> table{{
                                                              {"!="sv, "jne"sv},
@@ -59,9 +95,9 @@ namespace pseu {
 
 
     codegen::CodeGenerator::CodeGenerator(const ir::InterCodeArray &arr,
-                                 const std::unordered_map<std::string, std::string> &identifiers,
-                                 const std::unordered_map<std::string, std::string> &constants,
-                                 const std::unordered_map<std::string, std::string> &tempmap)
+                                          const std::unordered_map<std::string, std::string> &identifiers,
+                                          const std::unordered_map<std::string, std::string> &constants,
+                                          const std::unordered_map<std::string, std::string> &tempmap)
             : arr(arr), ids(identifiers), consts(constants), tempmap(tempmap), need_print_num(false),
               need_print_string(false) {}
 
