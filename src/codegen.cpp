@@ -227,7 +227,8 @@ _start:
     }
 
     void codegen::CodeGenerator::gen_code() {
-        for (auto &ins: arr.code) {
+        for (auto ins: arr.code) {
+            [[maybe_unused]] auto g = ins.guard();
             std::visit([&](auto &ir) {
                 using T = std::decay_t<decltype(ir)>;
 
@@ -255,7 +256,8 @@ _start:
         need_print_string = false;
 
         // Pre-scan IR to determine which helpers are needed
-        for (auto &ins: arr.code) {
+        for (auto ins: arr.code) {
+            [[maybe_unused]] auto g = ins.guard();
             std::visit([&](auto &ir) {
                 using T = std::decay_t<decltype(ir)>;
 

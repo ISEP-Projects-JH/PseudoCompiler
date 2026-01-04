@@ -3,58 +3,60 @@
 
 namespace pseu {
 
-    static std::shared_ptr<ir::IRInstr>
+    inline ir::ir_pool_t pool{};
+
+    static ir::ir_pool_t::ptr
     make_assign(std::string_view v,
                 std::string_view l,
                 std::string_view op,
                 std::string_view r) {
-        return std::make_shared<ir::IRInstr>(
+        return pool.acquire(ir::IRInstr{
                 ir::AssignmentCode{
                         std::string(v),
                         std::string(l),
                         std::string(op),
                         std::string(r)
-                }
+                }}
         );
     }
 
-    static std::shared_ptr<ir::IRInstr>
+    static ir::ir_pool_t::ptr
     make_jump(std::string_view d) {
-        return std::make_shared<ir::IRInstr>(
-                ir::JumpCode{std::string(d)}
+        return pool.acquire(ir::IRInstr{
+                ir::JumpCode{std::string(d)}}
         );
     }
 
-    static std::shared_ptr<ir::IRInstr>
+    static ir::ir_pool_t::ptr
     make_label(std::string_view l) {
-        return std::make_shared<ir::IRInstr>(
-                ir::LabelCode{std::string(l)}
+        return pool.acquire(ir::IRInstr{
+                ir::LabelCode{std::string(l)}}
         );
     }
 
-    static std::shared_ptr<ir::IRInstr>
+    static ir::ir_pool_t::ptr
     make_compare(std::string_view l,
                  std::string_view op,
                  std::string_view r,
                  std::string_view j) {
-        return std::make_shared<ir::IRInstr>(
+        return pool.acquire(ir::IRInstr{
                 ir::CompareCodeIR{
                         std::string(l),
                         std::string(op),
                         std::string(r),
                         std::string(j)
-                }
+                }}
         );
     }
 
-    static std::shared_ptr<ir::IRInstr>
+    static ir::ir_pool_t::ptr
     make_print(std::string_view t,
                std::string_view v) {
-        return std::make_shared<ir::IRInstr>(
+        return pool.acquire(ir::IRInstr{
                 ir::PrintCodeIR{
                         std::string(t),
                         std::string(v)
-                }
+                }}
         );
     }
 

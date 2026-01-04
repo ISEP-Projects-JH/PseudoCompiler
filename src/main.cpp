@@ -274,7 +274,8 @@ int main(int argc, char **argv) {
                 if (cfg.print_ir) {
                     std::cout << "\n===== IR =====\n";
 
-                    for (auto &instr: gen.code.code) {
+                    for (auto instr: gen.code.code) {
+                        [[maybe_unused]] auto g = instr.guard();
                         std::visit([&](auto &ir) {
                             using T = std::decay_t<decltype(ir)>;
 
