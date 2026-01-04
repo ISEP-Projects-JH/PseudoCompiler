@@ -226,25 +226,24 @@ void CodeGenerator::gen_print(const PrintCodeIR &p) {
 
 void CodeGenerator::gen_code() {
     for (auto &ins: arr.code) {
-        switch (ins->kind()) {
-            case IRKind::Assignment:
-                gen_assignment(*std::static_pointer_cast<AssignmentCode>(ins));
-                break;
-            case IRKind::Jump:
-                gen_jump(*std::static_pointer_cast<JumpCode>(ins));
-                break;
-            case IRKind::Label:
-                gen_label(*std::static_pointer_cast<LabelCode>(ins));
-                break;
-            case IRKind::Compare:
-                gen_compare(*std::static_pointer_cast<CompareCodeIR>(ins));
-                break;
-            case IRKind::Print:
-                gen_print(*std::static_pointer_cast<PrintCodeIR>(ins));
-                break;
-        }
+        std::visit([&](auto &ir) {
+            using T = std::decay_t<decltype(ir)>;
+
+            if constexpr (std::is_same_v<T, AssignmentCode>) {
+                gen_assignment(ir);
+            } else if constexpr (std::is_same_v<T, JumpCode>) {
+                gen_jump(ir);
+            } else if constexpr (std::is_same_v<T, LabelCode>) {
+                gen_label(ir);
+            } else if constexpr (std::is_same_v<T, CompareCodeIR>) {
+                gen_compare(ir);
+            } else if constexpr (std::is_same_v<T, PrintCodeIR>) {
+                gen_print(ir);
+            }
+        }, *ins);
     }
 }
+
 
 void CodeGenerator::writeAsm(const std::string &path) {
     out.clear();
@@ -255,13 +254,16 @@ void CodeGenerator::writeAsm(const std::string &path) {
 
     // Pre-scan IR to determine which helpers are needed
     for (auto &ins: arr.code) {
-        if (ins->kind() == IRKind::Print) {
-            auto print_ins = std::static_pointer_cast<PrintCodeIR>(ins);
-            if (print_ins->type == "string"sv)
-                need_print_string = true;
-            else
-                need_print_num = true;
-        }
+        std::visit([&](auto &ir) {
+            using T = std::decay_t<decltype(ir)>;
+
+            if constexpr (std::is_same_v<T, PrintCodeIR>) {
+                if (ir.type == "string"sv)
+                    need_print_string = true;
+                else
+                    need_print_num = true;
+            }
+        }, *ins);
     }
 
     gen_variables();
@@ -269,9 +271,9 @@ void CodeGenerator::writeAsm(const std::string &path) {
     gen_code();
     gen_end();
 
-    if (need_print_num)
+    if (need_print_num) // NOLINT
         gen_print_num_function();
-    if (need_print_string)
+    if (need_print_string) // NOLINT
         gen_print_string_function();
 
     std::ofstream f(path, std::ios::binary);

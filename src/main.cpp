@@ -16,7 +16,7 @@ YYBufferState yy_scan_string(const char* str);
 void yy_delete_buffer(YYBufferState b);
 int yyparse();
 
-extern std::shared_ptr<Node> g_ast_root;
+extern std::shared_ptr<ASTNode> g_ast_root;
 
 class FlexBuffer {
 public:
@@ -40,7 +40,7 @@ private:
 };
 
 
-static void print_ast(const std::shared_ptr<Node> &node,
+static void print_ast(const std::shared_ptr<ASTNode>& node,
                       std::string_view prefix = "",
                       bool isLast = true)
 {
@@ -50,25 +50,25 @@ static void print_ast(const std::shared_ptr<Node> &node,
     std::cout << prefix << (isLast ? "└── " : "├── ");
 
     // ---------------- Number ----------------
-    if (auto num = std::dynamic_pointer_cast<NumberNode>(node)) {
+    if (auto* num = std::get_if<NumberNode>(node.get())) {
         std::cout << "Number: " << num->tok.value << "\n";
         return;
     }
 
     // ---------------- Identifier ----------------
-    if (auto id = std::dynamic_pointer_cast<IdentifierNode>(node)) {
+    if (auto* id = std::get_if<IdentifierNode>(node.get())) {
         std::cout << "Identifier: " << id->tok.value << "\n";
         return;
     }
 
     // ---------------- String Literal ----------------
-    if (auto str = std::dynamic_pointer_cast<StringLiteralNode>(node)) {
+    if (auto* str = std::get_if<StringLiteralNode>(node.get())) {
         std::cout << "StringLiteral: \"" << str->tok.value << "\"\n";
         return;
     }
 
     // ---------------- BinOp ----------------
-    if (auto bin = std::dynamic_pointer_cast<BinOpNode>(node)) {
+    if (auto* bin = std::get_if<BinOpNode>(node.get())) {
         std::cout << "BinOp (" << bin->op_tok.value << ")\n";
         auto np = std::string(prefix) + (isLast ? "    " : "│   ");
         print_ast(bin->left,  np, false);
@@ -77,7 +77,7 @@ static void print_ast(const std::shared_ptr<Node> &node,
     }
 
     // ---------------- Condition ----------------
-    if (auto cond = std::dynamic_pointer_cast<Condition>(node)) {
+    if (auto* cond = std::get_if<Condition>(node.get())) {
         std::cout << "Condition (" << cond->comparison.value << ")\n";
         auto np = std::string(prefix) + (isLast ? "    " : "│   ");
         print_ast(cond->left_expression,  np, false);
@@ -86,35 +86,31 @@ static void print_ast(const std::shared_ptr<Node> &node,
     }
 
     // ---------------- IfStatement ----------------
-    if (auto iff = std::dynamic_pointer_cast<IfStatement>(node)) {
+    if (auto* iff = std::get_if<IfStatement>(node.get())) {
         std::cout << "If\n";
         auto base = std::string(prefix) + (isLast ? "    " : "│   ");
 
-        // Condition
         print_ast(iff->if_condition, base, false);
 
-        // THEN
         std::cout << base << "├── Then\n";
         print_ast(iff->if_body, base + "│   ", true);
 
-        // ELSE
         std::cout << base << "└── Else\n";
         print_ast(iff->else_body, base + "    ", true);
         return;
     }
 
     // ---------------- WhileStatement ----------------
-    if (auto wh = std::dynamic_pointer_cast<WhileStatement>(node)) {
+    if (auto* wh = std::get_if<WhileStatement>(node.get())) {
         std::cout << "While\n";
         auto base = std::string(prefix) + (isLast ? "    " : "│   ");
-
         print_ast(wh->condition, base, false);
         print_ast(wh->body,      base, true);
         return;
     }
 
     // ---------------- Print ----------------
-    if (auto p = std::dynamic_pointer_cast<PrintStatement>(node)) {
+    if (auto* p = std::get_if<PrintStatement>(node.get())) {
         std::cout << "Print(" << p->type << ")\n";
         auto np = std::string(prefix) + (isLast ? "    " : "│   ");
 
@@ -127,18 +123,16 @@ static void print_ast(const std::shared_ptr<Node> &node,
     }
 
     // ---------------- Declaration ----------------
-    if (auto decl = std::dynamic_pointer_cast<Declaration>(node)) {
+    if (auto* decl = std::get_if<Declaration>(node.get())) {
         std::cout << "Declaration (" << decl->declaration_type.value << ")\n";
         auto np = std::string(prefix) + (isLast ? "    " : "│   ");
 
-        // identifiers (list of tokens)
         for (size_t i = 0; i < decl->identifiers.size(); ++i) {
             bool last = (i == decl->identifiers.size() - 1 && !decl->init_expr);
             std::cout << np << (last ? "└── " : "├── ");
             std::cout << "Identifier: " << decl->identifiers[i].value << "\n";
         }
 
-        // initializer
         if (decl->init_expr) {
             std::cout << np << "└── init\n";
             print_ast(decl->init_expr, np + "    ", true);
@@ -147,20 +141,18 @@ static void print_ast(const std::shared_ptr<Node> &node,
     }
 
     // ---------------- Assignment ----------------
-    if (auto a = std::dynamic_pointer_cast<Assignment>(node)) {
+    if (auto* a = std::get_if<Assignment>(node.get())) {
         std::cout << "Assignment\n";
         auto np = std::string(prefix) + (isLast ? "    " : "│   ");
-
         std::cout << np << "├── Identifier: " << a->identifier.value << "\n";
         print_ast(a->expression, np, true);
         return;
     }
 
-    // ---------------- Statement (binary pair) ----------------
-    if (auto st = std::dynamic_pointer_cast<Statement>(node)) {
+    // ---------------- Statement ----------------
+    if (auto* st = std::get_if<Statement>(node.get())) {
         std::cout << "Statement\n";
         auto np = std::string(prefix) + (isLast ? "    " : "│   ");
-
         if (st->left)
             print_ast(st->left, np, false);
         if (st->right)
@@ -168,8 +160,9 @@ static void print_ast(const std::shared_ptr<Node> &node,
         return;
     }
 
-    std::cout << "Unknown Node\n";
+    std::cout << "Unknown ASTNode\n";
 }
+
 
 namespace fs = std::filesystem;
 
@@ -252,40 +245,37 @@ int main(int argc, char** argv)
 
                 if (cfg.print_ir) {
                     std::cout << "\n===== IR =====\n";
-                    for (auto &instr : gen.code.code) {
-                        switch (instr->kind()) {
-                            case IRKind::Assignment: {
-                                auto *a = dynamic_cast<AssignmentCode*>(instr.get());
-                                std::cout << a->var << " = " << a->left;
-                                if (!a->op.empty())
-                                    std::cout << " " << a->op << " " << a->right;
+
+                    for (auto& instr : gen.code.code) {
+                        std::visit([&](auto& ir) {
+                            using T = std::decay_t<decltype(ir)>;
+
+                            if constexpr (std::is_same_v<T, AssignmentCode>) {
+                                std::cout << ir.var << " = " << ir.left;
+                                if (!ir.op.empty())
+                                    std::cout << " " << ir.op << " " << ir.right;
                                 std::cout << "\n";
-                                break;
                             }
-                            case IRKind::Jump: {
-                                auto *j = dynamic_cast<JumpCode*>(instr.get());
-                                std::cout << "jump " << j->dist << "\n";
-                                break;
+                            else if constexpr (std::is_same_v<T, JumpCode>) {
+                                std::cout << "jump " << ir.dist << "\n";
                             }
-                            case IRKind::Label: {
-                                auto *l = dynamic_cast<LabelCode*>(instr.get());
-                                std::cout << l->label << ":\n";
-                                break;
+                            else if constexpr (std::is_same_v<T, LabelCode>) {
+                                std::cout << ir.label << ":\n";
                             }
-                            case IRKind::Compare: {
-                                auto *c = dynamic_cast<CompareCodeIR*>(instr.get());
-                                std::cout << "if " << c->left << " " << c->operation
-                                          << " " << c->right << " goto " << c->jump << "\n";
-                                break;
+                            else if constexpr (std::is_same_v<T, CompareCodeIR>) {
+                                std::cout << "if " << ir.left << " "
+                                          << ir.operation << " "
+                                          << ir.right << " goto "
+                                          << ir.jump << "\n";
                             }
-                            case IRKind::Print: {
-                                auto *p = dynamic_cast<PrintCodeIR*>(instr.get());
-                                std::cout << "print(" << p->type << ", " << p->value << ")\n";
-                                break;
+                            else if constexpr (std::is_same_v<T, PrintCodeIR>) {
+                                std::cout << "print(" << ir.type << ", "
+                                          << ir.value << ")\n";
                             }
-                        }
+                        }, *instr);
                     }
                 }
+
 
                 CodeGenerator codegen(
                         gen.code,

@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.16)
 project(CompilerForNASMCpp LANGUAGES CXX)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # --- Force using user's bison from PATH (macOS/Linux cross-platform) ---
@@ -32,3 +32,5 @@ add_executable(compiler
 )
 
 target_include_directories(compiler PRIVATE ${INC_DIR} ${CMAKE_CURRENT_BINARY_DIR})
+
+target_compile_options(compiler PRIVATE -fno-rtti)

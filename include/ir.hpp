@@ -3,6 +3,7 @@
 #include <vector>
 #include <unordered_map>
 #include <memory>
+#include <variant>
 #include "ast.hpp"
 
 enum class IRKind
@@ -14,47 +15,55 @@ enum class IRKind
     Print
 };
 
-struct IRInstr
-{
-    virtual ~IRInstr() = default;
-    [[nodiscard]] virtual IRKind kind() const = 0;
-};
+struct AssignmentCode;
+struct JumpCode;
+struct LabelCode;
+struct CompareCodeIR;
+struct PrintCodeIR;
 
-struct AssignmentCode : IRInstr
+using IRInstr = std::variant<
+        AssignmentCode,
+        JumpCode,
+        LabelCode,
+        CompareCodeIR,
+        PrintCodeIR
+>;
+
+struct AssignmentCode
 {
     std::string var;
     std::string left;
     std::string op;    // empty if none
     std::string right; // may be empty
-    [[nodiscard]] IRKind kind() const override { return IRKind::Assignment; }
+    [[nodiscard]] static IRKind kind() { return IRKind::Assignment; }
 };
 
-struct JumpCode : IRInstr
+struct JumpCode
 {
     std::string dist;
-    [[nodiscard]] IRKind kind() const override { return IRKind::Jump; }
+    [[nodiscard]] static IRKind kind() { return IRKind::Jump; }
 };
 
-struct LabelCode : IRInstr
+struct LabelCode
 {
     std::string label;
-    [[nodiscard]] IRKind kind() const override { return IRKind::Label; }
+    [[nodiscard]] static IRKind kind() { return IRKind::Label; }
 };
 
-struct CompareCodeIR : IRInstr
+struct CompareCodeIR
 {
     std::string left;
     std::string operation;
     std::string right;
     std::string jump;
-    [[nodiscard]] IRKind kind() const override { return IRKind::Compare; }
+    [[nodiscard]] static IRKind kind() { return IRKind::Compare; }
 };
 
-struct PrintCodeIR : IRInstr
+struct PrintCodeIR
 {
     std::string type; // "string" or "int"
     std::string value;
-    [[nodiscard]] IRKind kind() const override { return IRKind::Print; }
+    [[nodiscard]] static IRKind kind() { return IRKind::Print; }
 };
 
 struct InterCodeArray
@@ -73,18 +82,18 @@ struct GeneratedIR
 class IntermediateCodeGen
 {
 public:
-    explicit IntermediateCodeGen(const std::shared_ptr<Node> &root);
+    explicit IntermediateCodeGen(const std::shared_ptr<ASTNode> &root);
     GeneratedIR get();
 
 private:
-    std::string exec_expr(const std::shared_ptr<Node> &n);
-    void exec_assignment(const std::shared_ptr<Assignment> &a);
-    void exec_if(const std::shared_ptr<IfStatement> &i);
-    void exec_while(const std::shared_ptr<WhileStatement> &w);
-    std::string exec_condition(const std::shared_ptr<Condition> &c);
-    void exec_print(const std::shared_ptr<PrintStatement> &p);
-    void exec_declaration(const std::shared_ptr<Declaration> &d);
-    void exec_statement(const std::shared_ptr<Node> &n);
+    std::string exec_expr(const std::shared_ptr<ASTNode> &n);
+    void exec_assignment(const Assignment *a);
+    void exec_if(const IfStatement *i);
+    void exec_while(const WhileStatement *w);
+    std::string exec_condition(const Condition *c);
+    void exec_print(const PrintStatement *p);
+    void exec_declaration(const Declaration *d);
+    void exec_statement(const std::shared_ptr<ASTNode> &n);
     std::string nextTemp();
     std::string nextLabel();
 
@@ -92,7 +101,7 @@ private:
     std::string nextStringSym();
 
 private:
-    std::shared_ptr<Node> root;
+    std::shared_ptr<ASTNode> root;
     InterCodeArray arr;
     std::unordered_map<std::string, std::string> identifiers;
     std::unordered_map<std::string, std::string> constants;

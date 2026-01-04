@@ -1,45 +1,63 @@
 #include "ir.hpp"
 #include <string_view>
 
-static std::shared_ptr<AssignmentCode> make_assign(std::string_view v, std::string_view l, std::string_view op, std::string_view r)
+static std::shared_ptr<IRInstr>
+make_assign(std::string_view v,
+            std::string_view l,
+            std::string_view op,
+            std::string_view r)
 {
-    auto a = std::make_shared<AssignmentCode>();
-    a->var = v;
-    a->left = l;
-    a->op = op;
-    a->right = r;
-    return a;
+    return std::make_shared<IRInstr>(
+            AssignmentCode{
+                    std::string(v),
+                    std::string(l),
+                    std::string(op),
+                    std::string(r)
+            }
+    );
 }
-static std::shared_ptr<JumpCode> make_jump(std::string_view d)
+static std::shared_ptr<IRInstr>
+make_jump(std::string_view d)
 {
-    auto j = std::make_shared<JumpCode>();
-    j->dist = d;
-    return j;
+    return std::make_shared<IRInstr>(
+            JumpCode{ std::string(d) }
+    );
 }
-static std::shared_ptr<LabelCode> make_label(std::string_view l)
+static std::shared_ptr<IRInstr>
+make_label(std::string_view l)
 {
-    auto x = std::make_shared<LabelCode>();
-    x->label = l;
-    return x;
+    return std::make_shared<IRInstr>(
+            LabelCode{ std::string(l) }
+    );
 }
-static std::shared_ptr<CompareCodeIR> make_compare(std::string_view l, std::string_view op, std::string_view r, std::string_view j)
+static std::shared_ptr<IRInstr>
+make_compare(std::string_view l,
+             std::string_view op,
+             std::string_view r,
+             std::string_view j)
 {
-    auto c = std::make_shared<CompareCodeIR>();
-    c->left = l;
-    c->operation = op;
-    c->right = r;
-    c->jump = j;
-    return c;
+    return std::make_shared<IRInstr>(
+            CompareCodeIR{
+                    std::string(l),
+                    std::string(op),
+                    std::string(r),
+                    std::string(j)
+            }
+    );
 }
-static std::shared_ptr<PrintCodeIR> make_print(std::string_view t, std::string_view v)
+static std::shared_ptr<IRInstr>
+make_print(std::string_view t,
+           std::string_view v)
 {
-    auto p = std::make_shared<PrintCodeIR>();
-    p->type = t;
-    p->value = v;
-    return p;
+    return std::make_shared<IRInstr>(
+            PrintCodeIR{
+                    std::string(t),
+                    std::string(v)
+            }
+    );
 }
 
-IntermediateCodeGen::IntermediateCodeGen(const std::shared_ptr<Node> &root) : root(root)
+IntermediateCodeGen::IntermediateCodeGen(const std::shared_ptr<ASTNode> &root) : root(root)
 {
     exec_statement(root);
 }
@@ -52,22 +70,22 @@ std::string IntermediateCodeGen::nextLabel() { return "L" + std::to_string(lCoun
 [[maybe_unused]] std::string IntermediateCodeGen::currentLabel() const { return "L" + std::to_string(lCounter); }
 std::string IntermediateCodeGen::nextStringSym() { return "S" + std::to_string(sCounter++); }
 
-std::string IntermediateCodeGen::exec_expr(const std::shared_ptr<Node> &n)
+std::string IntermediateCodeGen::exec_expr(const std::shared_ptr<ASTNode> &n)
 {
-    if (auto id = std::dynamic_pointer_cast<IdentifierNode>(n))
+    if (auto* id = std::get_if<IdentifierNode>(n.get()))
         return id->getValue();
-    if (auto num = std::dynamic_pointer_cast<NumberNode>(n))
+
+    if (auto* num = std::get_if<NumberNode>(n.get()))
         return num->getValue();
-    if (auto str = std::dynamic_pointer_cast<StringLiteralNode>(n))
-    {
+
+    if (auto* str = std::get_if<StringLiteralNode>(n.get())) {
         auto sym = nextStringSym();
         constants[sym] = str->getValue();
         return sym;
     }
 
-
     // Extend this with more operators (optional)
-    auto bin = std::dynamic_pointer_cast<BinOpNode>(n);
+    auto* bin = std::get_if<BinOpNode>(n.get());
     auto left = exec_expr(bin->left);
     auto right = exec_expr(bin->right);
     auto t = nextTemp();
@@ -76,7 +94,7 @@ std::string IntermediateCodeGen::exec_expr(const std::shared_ptr<Node> &n)
     return t;
 }
 
-void IntermediateCodeGen::exec_assignment(const std::shared_ptr<Assignment> &a)
+void IntermediateCodeGen::exec_assignment(const Assignment *a)
 {
     if (!identifiers.count(a->identifier.value)) {
         identifiers[a->identifier.value] = "string";
@@ -85,7 +103,7 @@ void IntermediateCodeGen::exec_assignment(const std::shared_ptr<Assignment> &a)
     arr.append(make_assign(a->identifier.value, right, "", ""));
 }
 
-std::string IntermediateCodeGen::exec_condition(const std::shared_ptr<Condition> &c)
+std::string IntermediateCodeGen::exec_condition(const Condition *c)
 {
     auto left = exec_expr(c->left_expression);
     auto right = exec_expr(c->right_expression);
@@ -98,9 +116,10 @@ std::string IntermediateCodeGen::exec_condition(const std::shared_ptr<Condition>
     return trueLabel;
 }
 
-void IntermediateCodeGen::exec_if(const std::shared_ptr<IfStatement> &i)
+void IntermediateCodeGen::exec_if(const IfStatement *i)
 {
-    auto thenLabel = exec_condition(i->if_condition);
+    auto *if_condition = std::get_if<Condition>((i->if_condition).get());
+    auto thenLabel = exec_condition(if_condition);
     auto elseLabel = nextLabel();
     auto endLabel  = nextLabel();
 
@@ -121,7 +140,7 @@ void IntermediateCodeGen::exec_if(const std::shared_ptr<IfStatement> &i)
     arr.append(make_label(endLabel));
 }
 
-void IntermediateCodeGen::exec_while(const std::shared_ptr<WhileStatement> &w)
+void IntermediateCodeGen::exec_while(const WhileStatement *w)
 {
     auto startLabel = nextLabel();
     auto bodyLabel  = nextLabel();
@@ -129,8 +148,9 @@ void IntermediateCodeGen::exec_while(const std::shared_ptr<WhileStatement> &w)
 
     arr.append(make_label(startLabel));
 
+    auto *w_condition = std::get_if<Condition>((w->condition).get());
     // generate condition — true jumps to bodyLabel
-    auto trueLabel = exec_condition(w->condition);
+    auto trueLabel = exec_condition(w_condition);
 
     // false → end
     arr.append(make_jump(endLabel));
@@ -147,7 +167,7 @@ void IntermediateCodeGen::exec_while(const std::shared_ptr<WhileStatement> &w)
 }
 
 
-void IntermediateCodeGen::exec_print(const std::shared_ptr<PrintStatement> &p)
+void IntermediateCodeGen::exec_print(const PrintStatement *p)
 {
     if (p->type == "string")
     {
@@ -173,10 +193,12 @@ void IntermediateCodeGen::exec_print(const std::shared_ptr<PrintStatement> &p)
     }
 }
 
-void IntermediateCodeGen::exec_declaration(const std::shared_ptr<Declaration> &d)
+void IntermediateCodeGen::exec_declaration(const Declaration *d)
 {
     for (const auto &i : d->identifiers)
+
         identifiers[i.value] = d->declaration_type.value;
+
 
     // Handle initialization for single-variable declaration
     if (d->init_expr) {
@@ -186,42 +208,37 @@ void IntermediateCodeGen::exec_declaration(const std::shared_ptr<Declaration> &d
         auto varname = d->identifiers[0].value;
         auto right = exec_expr(d->init_expr);
         arr.append(make_assign(varname, right, "", ""));
+
     }
 }
 
 
-void IntermediateCodeGen::exec_statement(const std::shared_ptr<Node> &n)
+void IntermediateCodeGen::exec_statement(const std::shared_ptr<ASTNode> &n)
 {
     if (!n)
         return;
-    if (auto st = std::dynamic_pointer_cast<Statement>(n))
-    {
+    if (auto* st = std::get_if<Statement>(n.get())) {
         exec_statement(st->left);
         exec_statement(st->right);
         return;
     }
-    if (auto is = std::dynamic_pointer_cast<IfStatement>(n))
-    {
+    if (auto* is = std::get_if<IfStatement>(n.get())) {
         exec_if(is);
         return;
     }
-    if (auto wh = std::dynamic_pointer_cast<WhileStatement>(n))
-    {
+    if (auto* wh = std::get_if<WhileStatement>(n.get())) {
         exec_while(wh);
         return;
     }
-    if (auto pr = std::dynamic_pointer_cast<PrintStatement>(n))
-    {
+    if (auto* pr = std::get_if<PrintStatement>(n.get())) {
         exec_print(pr);
         return;
     }
-    if (auto de = std::dynamic_pointer_cast<Declaration>(n))
-    {
+    if (auto* de = std::get_if<Declaration>(n.get())) {
         exec_declaration(de);
         return;
     }
-    if (auto asg = std::dynamic_pointer_cast<Assignment>(n))
-    {
+    if (auto* asg = std::get_if<Assignment>(n.get())) {
         exec_assignment(asg);
         return;
     }
