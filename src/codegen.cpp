@@ -4,95 +4,48 @@
 #include <cctype>
 #include <cstdint>
 #include <fstream>
+#include <jh/meta>
 
 
 namespace pseu {
     using namespace std::literals;
+    using namespace jh::pod::literals;
 
-    /**
-     * @brief Compile-time string mapping entry.
-     *
-     * <p>
-     * Represents a simple key–value pair used for translating
-     * high-level operators or comparisons into assembly mnemonics.
-     * </p>
-     *
-     * <p>
-     * Stored as <code>std::string_view</code> to allow use in
-     * <code>constexpr</code> lookup tables without allocation.
-     * </p>
-     */
-    struct StrMap {
-        std::string_view key;
-        std::string_view val;
-    };
-
-    /**
-     * @brief Translate arithmetic operator to x86-64 instruction mnemonic.
-     *
-     * <p>
-     * Performs a lookup from a high-level binary operator
-     * (<code>+, -, *, /</code>) to the corresponding assembly instruction.
-     * </p>
-     *
-     * <p>
-     * Returns an empty string if the operator is not supported.
-     * </p>
-     */
-    static std::string op_to_asm(std::string_view op) {
-        static constexpr std::array<StrMap, 4> table{{
-                                                             {"*"sv, "imul"sv},
-                                                             {"+"sv, "add"sv},
-                                                             {"-"sv, "sub"sv},
-                                                             {"/"sv, "idiv"sv},
-                                                     }};
-
-        auto it = std::lower_bound(
-                table.begin(), table.end(), op,
-                [](const StrMap &e, std::string_view k) {
-                    return e.key < k;
-                });
-
-        if (it != table.end() && it->key == op)
-            return std::string(it->val);
-
-        return {};
+    namespace detail {
+        constexpr auto op_table =
+                jh::meta::make_lookup_map(
+                        std::array{
+                                std::pair{"*"_psv, "imul"_psv},
+                                std::pair{"+"_psv, "add"_psv},
+                                std::pair{"-"_psv, "sub"_psv},
+                                std::pair{"/"_psv, "idiv"_psv},
+                        },
+                        ""_psv   // default value
+                );
     }
 
-    /**
-     * @brief Translate comparison operator to conditional jump mnemonic.
-     *
-     * <p>
-     * Maps high-level comparison operators
-     * (<code>==, !=, <, <=, >, >=</code>) to x86-64 conditional jumps.
-     * </p>
-     *
-     * <p>
-     * Returns an empty string if the comparison is not supported.
-     * </p>
-     */
-    static std::string cmp_to_jmp(std::string_view c) {
-        static constexpr std::array<StrMap, 6> table{{
-                                                             {"!="sv, "jne"sv},
-                                                             {"<"sv, "jl"sv},
-                                                             {"<="sv, "jle"sv},
-                                                             {"=="sv, "je"sv},
-                                                             {">"sv, "jg"sv},
-                                                             {">="sv, "jge"sv},
-                                                     }};
-
-        auto it = std::lower_bound(
-                table.begin(), table.end(), c,
-                [](const StrMap &e, std::string_view k) {
-                    return e.key < k;
-                });
-
-        if (it != table.end() && it->key == c)
-            return std::string(it->val);
-
-        return {};
+    static jh::pod::string_view op_to_asm(std::string_view op) {
+        return detail::op_table[op];
     }
 
+    namespace detail {
+        constexpr auto cmp_table =
+                jh::meta::make_lookup_map(
+                        std::array{
+                                std::pair{"=="_psv, "je"_psv},
+                                std::pair{"!="_psv, "jne"_psv},
+                                std::pair{"<"_psv, "jl"_psv},
+                                std::pair{"<="_psv, "jle"_psv},
+                                std::pair{">"_psv, "jg"_psv},
+                                std::pair{">="_psv, "jge"_psv},
+                        },
+                        ""_psv
+                );
+    }
+
+    static jh::pod::string_view cmp_to_jmp(std::string_view c) {
+        return detail::cmp_table[c];
+    }
 
     codegen::CodeGenerator::CodeGenerator(const ir::InterCodeArray &arr,
                                           const std::unordered_map<std::string, std::string> &identifiers,
@@ -104,6 +57,10 @@ namespace pseu {
     void codegen::CodeGenerator::pr(std::string_view s) {
         out.insert(out.end(), s.begin(), s.end());
         out.emplace_back('\n');
+    }
+
+    void codegen::CodeGenerator::emit_sv(jh::pod::string_view sv) {
+        out.insert(out.end(), sv.begin(), sv.end());
     }
 
     std::string codegen::CodeGenerator::handleVar(
@@ -226,7 +183,9 @@ _start:
             pr("\tidiv rbx");
         } else {
             pr("\tmov rbx, " + handleVar(a.right, tempmap));
-            pr("\t" + op_to_asm(a.op) + " rax, rbx");
+            emit_sv("\t"_psv);
+            emit_sv(op_to_asm(a.op));
+            pr(" rax, rbx\n");
         }
 
         pr("\tmov " + handleVar(a.var, tempmap) + ", rax");
@@ -243,11 +202,13 @@ _start:
     void codegen::CodeGenerator::gen_compare(const ir::CompareCodeIR &c) {
         pr("\tmov rax, " + handleVar(c.left, tempmap));
         pr("\tcmp rax, " + handleVar(c.right, tempmap));
-        pr("\t" + cmp_to_jmp(c.operation) + " " + c.jump);
+        emit_sv("\t"_psv);
+        emit_sv(cmp_to_jmp(c.operation));
+        pr(" " + c.jump);
     }
 
     void codegen::CodeGenerator::gen_print(const ir::PrintCodeIR &p) {
-        if (p.type == "int"sv) {
+        if (p.type == ast::PrintType::Int) {
             pr("\tmov rdi, " + handleVar(p.value, tempmap));
             pr("\tcall print_num");
         } else {
@@ -298,7 +259,7 @@ _start:
                 using T = std::decay_t<decltype(ir)>;
 
                 if constexpr (std::is_same_v<T, ir::PrintCodeIR>) {
-                    if (ir.type == "string"sv)
+                    if (ir.type == ast::PrintType::Str)
                         need_print_string = true;
                     else
                         need_print_num = true;

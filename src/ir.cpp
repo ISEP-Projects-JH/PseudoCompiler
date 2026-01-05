@@ -2,6 +2,7 @@
 #include <string_view>
 
 namespace pseu {
+    using namespace std::literals;
 
     /**
      * @brief Translation-unit–local interning pool for IR instructions.
@@ -82,11 +83,11 @@ namespace pseu {
     }
 
     static ir::ir_pool_t::ptr
-    make_print(std::string_view t,
+    make_print(ast::PrintType t,
                std::string_view v) {
         return pool.acquire(ir::IRInstr{
                 ir::PrintCodeIR{
-                        std::string(t),
+                        t,
                         std::string(v)
                 }}
         );
@@ -216,29 +217,31 @@ namespace pseu {
 
 
     void ir::IntermediateCodeGen::exec_print(const ast::PrintStatement *p) {
-        if (p->type == "string") {
-            if (!p->strValue.empty()) {
-                // literal
+        if (p->type == ast::PrintType::Str) {
+            if (auto str = std::get_if<std::string>(&p->value)) {
                 auto sym = nextStringSym();
-                constants[sym] = p->strValue;
-                arr.code.push_back(make_print("string", sym));
+                constants[sym] = *str;
+                arr.code.push_back(make_print(ast::PrintType::Str, sym));
+                return;
             } else {
                 // variable
-                auto name = exec_expr(p->intExpr);
-                arr.code.push_back(make_print("string", name));
+                if (auto *expr = std::get_if<std::shared_ptr<ast::ASTNode>>(&p->value)) {
+                    auto name = exec_expr(*expr);
+                    arr.code.push_back(make_print(ast::PrintType::Str, name));
+                }
             }
         } else {
             // int print
-            auto name = exec_expr(p->intExpr);
-            arr.append(make_print("int", name));
+            if (auto *expr = std::get_if<std::shared_ptr<ast::ASTNode>>(&p->value)) {
+                auto name = exec_expr(*expr);
+                arr.append(make_print(ast::PrintType::Int, name));
+            }
         }
     }
 
     void ir::IntermediateCodeGen::exec_declaration(const ast::Declaration *d) {
         for (const auto &i: d->identifiers)
-
             identifiers[i.value] = d->declaration_type.value;
-
 
         // Handle initialization for single-variable declaration
         if (d->init_expr) {

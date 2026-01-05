@@ -140,7 +140,9 @@ namespace detail {
     }
 
     static void print_ast_node(const pseu::ast::PrintStatement &p, std::string_view) {
-        std::cout << "Print(" << p.type << ")\n";
+        std::cout << "Print(" << (p.type == pseu::ast::PrintType::Int ?
+                                  "int" : "string")
+                  << ")\n";
     }
 
     static void print_ast_node(const pseu::ast::Declaration &d, std::string_view) {
@@ -193,10 +195,13 @@ namespace detail {
         out.emplace_back(n.body);
     }
 
-    static void collect_children(const pseu::ast::PrintStatement &n,
-                                 std::vector<std::shared_ptr<pseu::ast::ASTNode>> &out) {
-        if (n.strValue.empty())
-            out.emplace_back(n.intExpr);
+    static void collect_children(
+            const pseu::ast::PrintStatement &n,
+            std::vector<std::shared_ptr<pseu::ast::ASTNode>> &out
+    ) {
+        if (auto expr = std::get_if<std::shared_ptr<pseu::ast::ASTNode>>(&n.value)) {
+            out.emplace_back(*expr);
+        }
     }
 
     static void collect_children(const pseu::ast::Declaration &n,
@@ -350,9 +355,8 @@ int main(int argc, char **argv) {
 
         try {
             detail::FlexBuffer f_buffer(input);
-            int parse_result = yyparse();
 
-            if (parse_result == 0) {
+            if (const int parse_result = yyparse(); parse_result == 0) {
                 if (cfg.print_ast) {
                     std::cout << "===== AST =====\n";
                     detail::print_ast(g_ast_root);
@@ -384,7 +388,9 @@ int main(int argc, char **argv) {
                                           << ir.right << " goto "
                                           << ir.jump << "\n";
                             } else if constexpr (std::is_same_v<T, pseu::ir::PrintCodeIR>) {
-                                std::cout << "print(" << ir.type << ", "
+                                std::cout << "print("
+                                          << ((ir.type == pseu::ast::PrintType::Int) ? "int" : "string")
+                                          << ", "
                                           << ir.value << ")\n";
                             }
                         }, *instr);
@@ -410,7 +416,7 @@ int main(int argc, char **argv) {
         std::string dummy;
         std::getline(std::cin, dummy);
 
-        auto trim = [](std::string s) {
+        const auto trim = [](std::string s) {
             s.erase(0, s.find_first_not_of(" \t\r\n"));
             s.erase(s.find_last_not_of(" \t\r\n") + 1);
             return s;

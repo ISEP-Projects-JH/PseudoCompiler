@@ -283,25 +283,25 @@ printing
     {
         auto p = std::make_shared<pseu::ast::ASTNode>(pseu::ast::PrintStatement{});
         auto& p_stmt = std::get<pseu::ast::PrintStatement>(*p);
-        p_stmt.type = "int";
-        p_stmt.intExpr = $3.node;
+        p_stmt.type = pseu::ast::PrintType::Int;
+        p_stmt.value = $3.node;
         $$.node = p;
     }
     | T_PRINTS T_LPAREN T_STRING T_RPAREN T_SEMICOLON
     {
         auto p = std::make_shared<pseu::ast::ASTNode>(pseu::ast::PrintStatement{});
         auto& p_stmt = std::get<pseu::ast::PrintStatement>(*p);
-        p_stmt.type = "string";
-        p_stmt.strValue = $3.token.value;
+        p_stmt.type = pseu::ast::PrintType::Str;
+        p_stmt.value = $3.token.value;
         $$.node = p;
     }
     | T_PRINTS T_LPAREN T_VAR T_RPAREN T_SEMICOLON
     {
         auto p = std::make_shared<pseu::ast::ASTNode>(pseu::ast::PrintStatement{});
         auto& p_stmt = std::get<pseu::ast::PrintStatement>(*p);
-        p_stmt.type = "string";
+        p_stmt.type = pseu::ast::PrintType::Str;
 
-        p_stmt.intExpr = std::make_shared<pseu::ast::ASTNode>(pseu::ast::IdentifierNode{$3.token});
+        p_stmt.value = std::make_shared<pseu::ast::ASTNode>(pseu::ast::IdentifierNode{$3.token});
 
         $$.node = p;
     }

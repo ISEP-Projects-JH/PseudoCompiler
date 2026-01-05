@@ -188,7 +188,7 @@ namespace pseu::ir {
      * The type field distinguishes between integer and string output.
      */
     struct PrintCodeIR final {
-        std::string type; // "string" or "int"
+        ast::PrintType type;
         std::string value;
 
         bool operator==(const PrintCodeIR &) const = default;
@@ -200,7 +200,7 @@ namespace pseu::ir {
         std::uint64_t operator()(PrintCodeIR const &a) const noexcept {
             std::uint64_t h = 14695981039346656037ull; // FNV offset
 
-            h = hash_mix(h, jh::meta::fnv1a64(a.type.data(), a.type.size()));
+            h = hash_mix(h, static_cast<std::uint8_t>(a.type));
             h = hash_mix(h, jh::meta::fnv1a64(a.value.data(), a.value.size()));
 
             return h;

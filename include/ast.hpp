@@ -36,6 +36,11 @@
 
 namespace pseu::ast {
 
+    enum class PrintType : std::uint8_t {
+        Int = 0,
+        Str = 1
+    };
+
     // Forward declarations of all AST node types.
     // These are used to construct the ASTNode variant.
 
@@ -183,9 +188,8 @@ namespace pseu::ast {
      * or string literals.
      */
     struct PrintStatement final {
-        std::string type;
-        std::shared_ptr<ASTNode> intExpr;    // if type == "int"
-        std::string strValue;                // if type == "string"
+        PrintType type;
+        std::variant<std::shared_ptr<ASTNode>, std::string> value;
     };
 
     /**
@@ -205,7 +209,7 @@ namespace pseu::ast {
      * optional initialization.
      */
     struct Declaration final {
-        lexer::Token declaration_type;              // "int" or "string"
+        lexer::Token declaration_type;              // int or string
         std::vector<lexer::Token> identifiers;      // list of var IDs
         std::shared_ptr<ASTNode> init_expr;         // only for int x = expr;
         Declaration() : init_expr(nullptr) {}

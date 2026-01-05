@@ -33,6 +33,7 @@
 #include <string>
 #include <string_view>
 #include <unordered_map>
+#include <jh/pod>
 
 namespace pseu::codegen {
 
@@ -119,6 +120,9 @@ namespace pseu::codegen {
          * @return Resolved symbol name.
          */
         static std::string handleVar(const std::string &a, const std::unordered_map<std::string, std::string> &tempmap);
+
+        /// @brief variant of pr with <code>jh::pod::string_view</code> (result of table-lookup), no new line
+        void emit_sv(jh::pod::string_view sv);
 
     private:
         const ir::InterCodeArray &arr;
