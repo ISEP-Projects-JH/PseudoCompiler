@@ -1,8 +1,13 @@
 # PseudoCompiler
 
 [![CI](https://github.com/ISEP-Projects-JH/PseudoCompiler/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ISEP-Projects-JH/PseudoCompiler/actions/workflows/ci.yml)
+[![zread](https://img.shields.io/badge/Ask_Zread-_.svg?style=flat&color=00b0aa&labelColor=000000&logo=data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTQuOTYxNTYgMS42MDAxSDIuMjQxNTZDMS44ODgxIDEuNjAwMSAxLjYwMTU2IDEuODg2NjQgMS42MDE1NiAyLjI0MDFWNC45NjAxQzEuNjAxNTYgNS4zMTM1NiAxLjg4ODEgNS42MDAxIDIuMjQxNTYgNS42MDAxSDQuOTYxNTZDNS4zMTUwMiA1LjYwMDEgNS42MDE1NiA1LjMxMzU2IDUuNjAxNTYgNC45NjAxVjIuMjQwMUM1LjYwMTU2IDEuODg2NjQgNS4zMTUwMiAxLjYwMDEgNC45NjE1NiAxLjYwMDFaIiBmaWxsPSIjZmZmIi8%2BCjxwYXRoIGQ9Ik00Ljk2MTU2IDEwLjM5OTlIMi4yNDE1NkMxLjg4ODEgMTAuMzk5OSAxLjYwMTU2IDEwLjY4NjQgMS42MDE1NiAxMS4wMzk5VjEzLjc1OTlDMS42MDE1NiAxNC4xMTM0IDEuODg4MSAxNC4zOTk5IDIuMjQxNTYgMTQuMzk5OUg0Ljk2MTU2QzUuMzE1MDIgMTQuMzk5OSA1LjYwMTU2IDE0LjExMzQgNS42MDE1NiAxMy43NTk5VjExLjAzOTlDNS42MDE1NiAxMC42ODY0IDUuMzE1MDIgMTAuMzk5OSA0Ljk2MTU2IDEwLjM5OTlaIiBmaWxsPSIjZmZmIi8%2BCjxwYXRoIGQ9Ik0xMy43NTg0IDEuNjAwMUgxMS4wMzg0QzEwLjY4NSAxLjYwMDEgMTAuMzk4NCAxLjg4NjY0IDEwLjM5ODQgMi4yNDAxVjQuOTYwMUMxMC4zOTg0IDUuMzEzNTYgMTAuNjg1IDUuNjAwMSAxMS4wMzg0IDUuNjAwMUgxMy43NTg0QzE0LjExMTkgNS42MDAxIDE0LjM5ODQgNS4zMTM1NiAxNC4zOTg0IDQuOTYwMVYyLjI0MDFDMTQuMzk4NCAxLjg4NjY0IDE0LjExMTkgMS42MDAxIDEzLjc1ODQgMS42MDAxWiIgZmlsbD0iI2ZmZiIvPgo8cGF0aCBkPSJNNCAxMkwxMiA0TDQgMTJaIiBmaWxsPSIjZmZmIi8%2BCjxwYXRoIGQ9Ik00IDEyTDEyIDQiIHN0cm9rZT0iI2ZmZiIgc3Ryb2tlLXdpZHRoPSIxLjUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPgo8L3N2Zz4K&logoColor=ffffff)](https://zread.ai/ISEP-Projects-JH/PseudoCompiler)
 
 A **minimal pseudo-language compiler** intended purely for **teaching and demonstration**.
+
+> Note: You can consult zread for a quick start guide (available in English or Simplified Chinese), but please avoid
+> over-reliance on zread. AI-generated summaries may occasionally be affected by hallucinations and deviate from
+> actual content. Refer to the documentation and doxygen comments for the most accurate information.
 
 This project is derived from a distributed educational compiler framework, but has since been **fully refactored** to
 demonstrate a modern C++20-style compiler pipeline with **value semantics**, **closed ADTs**, and **explicit memory
@@ -16,6 +21,12 @@ management**.
 
 ## Overview
 
+> If you need to use AI to analyze your repository, emphasize the importance of Doxygen and documentation in your prompt
+> to avoid AI overinterpreting implementation code. This is a complete antipattern in modern C++ (mcpp) and is
+> misleading. C++ emphasizes that the API defines semantic boundaries, and documentation describes behavior. You should
+> not overemphasize implementation details, as they offer **exactly no practical benefit** to your usage (understanding
+> implementation details is relevant for rewriters, and even maintainers should not obsess over them).
+
 PseudoCompiler demonstrates a **complete but minimal compilation pipeline**:
 
 1. Lexical analysis (Flex)
@@ -24,7 +35,7 @@ PseudoCompiler demonstrates a **complete but minimal compilation pipeline**:
 4. IR (Intermediate Representation) generation
 5. Assembly code generation (x86-64 NASM-style)
 
-The language and implementation are intentionally constrained to keep the design **fully understandable** and 
+The language and implementation are intentionally constrained to keep the design **fully understandable** and
 **mechanically transparent**.
 
 ---
@@ -32,6 +43,8 @@ The language and implementation are intentionally constrained to keep the design
 ## Language Description (Pseudo Language)
 
 This compiler implements a **very small pseudo language** with deliberately limited features.
+
+See [Grammar](Grammar.md) for details
 
 ### Types
 
@@ -105,6 +118,11 @@ prints("hello");
 
 * `print(int)`
 * `prints(string_variable)` or `prints(string_literal)`
+
+Internally, printing is modeled as a **closed two-state operation** rather than
+a string-dispatched command. Since only two print modes exist (integer vs string),
+the compiler represents the print kind using a small enum instead of string tags,
+avoiding unnecessary string comparisons during IR generation and code emission.
 
 ---
 
@@ -343,7 +361,7 @@ PseudoCompiler/
 
 This repository is licensed under the **[MIT License](LICENSE)**.
 
-Third-party dependency **[JH-Toolkit](https://github.com/JeongHan-Bae/JH-Toolkit)** is licensed 
+Third-party dependency **[JH-Toolkit](https://github.com/JeongHan-Bae/JH-Toolkit)** is licensed
 under **[Apache License 2.0](https://github.com/JeongHan-Bae/JH-Toolkit/blob/main/LICENSE)**.  
 See the [NOTICE file](NOTICE.md) for details.
 
